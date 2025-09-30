@@ -1,0 +1,3 @@
+/home/yaroslav/Desktop/SDR/lesson_2/build/CMakeFiles/main.out.dir
+/home/yaroslav/Desktop/SDR/lesson_2/build/CMakeFiles/edit_cache.dir
+/home/yaroslav/Desktop/SDR/lesson_2/build/CMakeFiles/rebuild_cache.dir
