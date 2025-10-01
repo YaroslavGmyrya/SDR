@@ -4,11 +4,61 @@
 #include <stdlib.h>            //free
 #include <stdint.h>
 #include <complex.h>
+#include <string.h>
+
+#define ADC_CAPACITY 12
+#define BITS_SHIFT 4
+#define TAU 10
+#define MESSAGE "Hello My Beuatiful World"
+
+uint8_t* stob(char* str, int* out_bits_count) {
+    int len = strlen(str);
+    *out_bits_count = len * 8;
+    
+    uint8_t* bits = (uint8_t*)malloc(*out_bits_count * sizeof(uint8_t));
+    if (bits == NULL) return NULL;
+    
+    for (int i = 0; i < len; i++) {
+        unsigned char c = str[i];
+        for (int j = 0; j < 8; j++) {
+            bits[i * 8 + j] = (c >> (7 - j)) & 1;
+        }
+    }
+    
+    return bits;
+}
+
+int16_t* bits_to_signal(uint8_t* bits, int bits_count, int tx_mtu){
+
+    int16_t* tx_buff = (int16_t*)malloc(sizeof(int16_t) * tx_mtu * 2);
+
+    for (int i = 0; i < bits_count; i += 1)
+    {   
+        for(int j = i*20; j < i*20 + 20 && j < tx_mtu*2; j+=2){
+            if(bits[i]){
+                tx_buff[j] = 2047 << 4;    // I
+                tx_buff[j+1] = -2047 << 4; // Q
+            } else{
+                tx_buff[j] = 0;      //I
+                tx_buff[j+1] = 0;    //Q
+            }
+        }
+    }
+
+    return tx_buff;
+}
+
 
 int main(){
-    FILE *file = fopen("samples.txt", "w");
+    FILE *rx_samples = fopen("rx_samples.txt", "w");
+    FILE *tx_samples = fopen("tx_samples.txt", "w");
 
-    if(file == nullptr){
+    if(rx_samples == nullptr){
+        printf("Erorr in open file\n");
+        return -1;
+    }
+
+    if(tx_samples == nullptr){
         printf("Erorr in open file\n");
         return -1;
     }
@@ -17,7 +67,7 @@ int main(){
 
     SoapySDRKwargs_set(&args, "driver", "plutosdr");        // Говорим какой Тип устройства 
     if (1) {
-        SoapySDRKwargs_set(&args, "uri", "usb:3.12.5");           // Способ обмена сэмплами (USB)
+        SoapySDRKwargs_set(&args, "uri", "usb:3.10.5");            // Способ обмена сэмплами (USB)
     } else {
         SoapySDRKwargs_set(&args, "uri", "ip:192.168.2.1"); // Или по IP-адресу
     }
@@ -54,19 +104,24 @@ int main(){
 
     // Получение MTU (Maximum Transmission Unit), в нашем случае - размер буферов. 
     size_t rx_mtu = SoapySDRDevice_getStreamMTU(sdr, rxStream);
-    size_t tx_mtu = SoapySDRDevice_getStreamMTU(sdr, txStream);
+    //size_t tx_mtu = SoapySDRDevice_getStreamMTU(sdr, txStream);
 
+    int16_t rx_buffer[2 * rx_mtu];
+    // размер буффера (т.к в rx/tx mtu находится кол-во семплов, а в одном семпле 2 числа типа int16_t)
+    //int tx_buffer_size =  tx_mtu * 2;
     // Выделяем память под буферы RX и TX
-    int16_t tx_buff[2*tx_mtu];
-    int16_t rx_buffer[2*rx_mtu];
+    int bits_count;
+    uint8_t* bits = stob(MESSAGE, &bits_count);
+    int tx_mtu = bits_count * TAU;
+    int16_t* tx_buff = bits_to_signal(bits, bits_count, tx_mtu);
+ 
+    //заполнение tx_buff значениями сэмплов первые 16 бит - I, вторые 16 бит - Q.
 
-     //заполнение tx_buff значениями сэмплов первые 16 бит - I, вторые 16 бит - Q.
-    for (int i = 0; i < 2 * tx_mtu; i+=2)
-    {
-        // ЗДЕСЬ БУДУТ ВАШИ СЭМПЛЫ
-        tx_buff[i] = 1500;   // I
-        tx_buff[i+1] = 1500; // Q
+    for(int i = 0; i < tx_mtu * 2; i+=2){
+        fprintf(tx_samples, "(%d,%d),", tx_buff[i], tx_buff[i+1]);
     }
+
+    
 
     //prepare fixed bytes in transmit buffer
     //we transmit a pattern of FFFF FFFF [TS_0]00 [TS_1]00 [TS_2]00 [TS_3]00 [TS_4]00 [TS_5]00 [TS_6]00 [TS_7]00 FFFF FFFF
@@ -80,7 +135,7 @@ int main(){
     }
 
     // Количество итерация чтения из буфера
-    size_t iteration_count = 100;
+    size_t iteration_count = 6;
     const long  timeoutUs = 400000;
     long long last_time = 0;
 
@@ -100,7 +155,7 @@ int main(){
         // пишем в файл
 
         for(int i = 0; i < rx_mtu*2; i++){
-            fprintf(file, "(%d,%d), ", rx_buffer[i], rx_buffer[i+1]);
+            fprintf(rx_samples, "(%d,%d), ", rx_buffer[i], rx_buffer[i+1]);
         }
 
         // Переменная для времени отправки сэмплов относительно текущего приема
@@ -137,6 +192,7 @@ int main(){
 
     //cleanup device handle
     SoapySDRDevice_unmake(sdr);
+    fclose(rx_samples);
 
     return 0;
 }
