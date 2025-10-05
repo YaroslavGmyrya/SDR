@@ -1,2 +1,6 @@
 *.out
+<<<<<<< HEAD
 /lesson/build
+=======
+/lesson_2/build
+>>>>>>> 0535719587d7519eb0483c785bd62ddcb0ac54ee
