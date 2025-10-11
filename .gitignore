@@ -1,6 +1,4 @@
 *.out
 *.txt
-/lesson_1/build
-/lesson_2/build
-/lesson_3/build
-/lesson_4/build
+/lesson_*/build
+!/lesson_*/CMakeLists.txt
