@@ -1,6 +1,6 @@
 *.out
-<<<<<<< HEAD
-/lesson/build
-=======
+*.txt
+/lesson_1/build
 /lesson_2/build
->>>>>>> 0535719587d7519eb0483c785bd62ddcb0ac54ee
+/lesson_3/build
+/lesson_4/build

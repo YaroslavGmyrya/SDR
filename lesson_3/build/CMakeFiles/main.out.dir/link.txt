@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/main.out.dir/src/main.cpp.o -o main.out  -Wl,-rpath,/usr/local/lib /usr/local/lib/libSoapySDR.so.0.8.1 -pthread 
