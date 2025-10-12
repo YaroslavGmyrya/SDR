@@ -9,7 +9,7 @@
 #define ADC_CAPACITY 12
 #define BITS_SHIFT 4
 #define TAU 10
-#define TAU_ON_BITS 20
+#define TAU_ON_ELEMENT 20
 #define MESSAGE "Hello My Beuatiful World"
 
 uint8_t* stob(char* str, int* out_bits_count) {
@@ -52,7 +52,7 @@ int16_t* bits_to_rect_signal(uint8_t* bits, int bits_count, int tx_mtu){
     for (int i = 0; i < bits_count; ++i)
     {   
         // fill tx_buff with samples
-        for(int j = i*TAU_ON_BITS; j < i*TAU_ON_BITS + 20 && j < tx_mtu*2; j+=2){
+        for(int j = i*TAU_ON_ELEMENT; j < i*TAU_ON_ELEMENT + 20 && j < tx_mtu*2; j+=2){
             if(bits[i]){
                 tx_buff[j] = 2047 << 4;    // I
                 tx_buff[j+1] = -2047 << 4; // Q
@@ -66,7 +66,7 @@ int16_t* bits_to_rect_signal(uint8_t* bits, int bits_count, int tx_mtu){
     return tx_buff;
 }
 
-int16_t* bits_to_treangle_signal(uint8_t* bits, int bits_count, int tx_mtu){
+int16_t* bits_to_triangle_signal(uint8_t* bits, int bits_count, int tx_mtu){
 
     // allocate memory
     int16_t* tx_buff = (int16_t*)malloc(sizeof(int16_t) * tx_mtu * 2);
@@ -75,8 +75,8 @@ int16_t* bits_to_treangle_signal(uint8_t* bits, int bits_count, int tx_mtu){
     for (int i = 0; i < bits_count; ++i)
     {   
         // fill tx_buff with samples
-        for(int j = i*TAU_ON_BITS; j < i*TAU_ON_BITS + 20 && j < tx_mtu*2; j+=2){
-            if(bits[i] && j == i*TAU_ON_BITS + 8){
+        for(int j = i*TAU_ON_ELEMENT; j < i*TAU_ON_ELEMENT + 20 && j < tx_mtu*2; j+=2){
+            if(bits[i] && j == i*TAU_ON_ELEMENT + 8){
                 tx_buff[j] = 2047 << 4;    // I
                 tx_buff[j+1] = -2047 << 4; // Q
             } else{
@@ -94,7 +94,7 @@ int16_t* parabola_signal(int tx_mtu){
     // allocate memory
     int16_t* tx_buff = (int16_t*)malloc(sizeof(int16_t) * tx_mtu * 2);
 
-    float coef = -96;
+    float coef = -tx_mtu / 10;
 
     for (int i = 0; i < 2 * tx_mtu; i+=2)
     {
