@@ -2,3 +2,4 @@
 *.txt
 /lesson_*/build
 !/lesson_*/CMakeLists.txt
+lesson_5/audio_converter/my_venv
