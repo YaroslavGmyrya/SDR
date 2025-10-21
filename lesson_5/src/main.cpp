@@ -115,7 +115,7 @@ int16_t *read_pcm(const char *filename, size_t *sample_count)
     fseek(file, 0, SEEK_END);
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
-    printf("file_size = %ld\\n", file_size);
+    printf("file_size = %ldn", file_size);
     int16_t *samples = (int16_t *)malloc(file_size);
 
     *sample_count = file_size / sizeof(int16_t);
@@ -132,32 +132,24 @@ int16_t *read_pcm(const char *filename, size_t *sample_count)
 }
 
 int main(){
-    FILE *rx_samples = fopen("rx_samples.txt", "w");
-    FILE *tx_samples = fopen("tx_samples.txt", "w");
 
-    if(rx_samples == nullptr){
-        printf("Erorr in open file\n");
-        return -1;
-    }
-
-    if(tx_samples == nullptr){
-        printf("Erorr in open file\n");
-        return -1;
-    }
-
+    //При работе с SoapySDR инициализация устройства выполняется при помощи указателя на структуру SoapySDRDevic
+    //Аргументы (в рамках библиотеки SoapySDR) имеют формат ключ :  значение :
     SoapySDRKwargs args = {};
-
     SoapySDRKwargs_set(&args, "driver", "plutosdr");        // Говорим какой Тип устройства 
     if (1) {
-        SoapySDRKwargs_set(&args, "uri", "usb:3.5.5");            // Способ обмена сэмплами (USB)
+        SoapySDRKwargs_set(&args, "uri", "usb:");           // Способ обмена сэмплами (USB)
     } else {
-        SoapySDRKwargs_set(&args, "uri", "ip:192.168.2.1"); // Или по IP-адресу
+        SoapySDRKwargs_set(&args, "uri", "ip:192.168.3.10"); // Или по IP-адресу
     }
     SoapySDRKwargs_set(&args, "direct", "1");               // 
     SoapySDRKwargs_set(&args, "timestamp_every", "1920");   // Размер буфера + временные метки
     SoapySDRKwargs_set(&args, "loopback", "0");             // Используем антенны или нет
     SoapySDRDevice *sdr = SoapySDRDevice_make(&args);       // Инициализация
     SoapySDRKwargs_clear(&args);
+
+
+    //Настройка параметров устройств TXRX:
 
     int sample_rate = 1e6;
     int carrier_freq = 800e6;
@@ -169,13 +161,15 @@ int main(){
     SoapySDRDevice_setSampleRate(sdr, SOAPY_SDR_TX, 0, sample_rate);
     SoapySDRDevice_setFrequency(sdr, SOAPY_SDR_TX, 0, carrier_freq , NULL);
 
-    // Инициализация количества каналов RX\TX (в AdalmPluto он один, нулевой)
+    // Инициализация количества каналов RXTX (в AdalmPluto он один, нулевой)
     size_t channels[] = {0};
-    size_t channel_count = sizeof(channels) / sizeof(channels[0]);
-
     // Настройки усилителей на RXTX
-    SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, channels[0], 10.0); // Чувствительность приемника
-    SoapySDRDevice_setGain(sdr, SOAPY_SDR_TX, channels[0], -90.0);// Усиление передатчика
+    SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, channels[0], 65.0); // Чувствительность приемника
+    SoapySDRDevice_setGain(sdr, SOAPY_SDR_TX, channels[0], -30.0);// Усиление передатчика
+
+    //Инициализация потоков (stream) для передачи и примема сэмплов:
+
+    int channel_count = std::size(channels);
 
     // Формирование потоков для передачи и приема сэмплов
     SoapySDRStream *rxStream = SoapySDRDevice_setupStream(sdr, SOAPY_SDR_RX, SOAPY_SDR_CS16, channels, channel_count, NULL);
@@ -184,52 +178,29 @@ int main(){
     SoapySDRDevice_activateStream(sdr, rxStream, 0, 0, 0); //start streaming
     SoapySDRDevice_activateStream(sdr, txStream, 0, 0, 0); //start streaming
 
-    // Получение MTU (Maximum Transmission Unit), в нашем случае - размер буферов. 
+    //Выделение памяти под буфферы (для хранения сэмплов TX, RX):
     size_t rx_mtu = SoapySDRDevice_getStreamMTU(sdr, rxStream);
     size_t tx_mtu = SoapySDRDevice_getStreamMTU(sdr, txStream);
 
-    int16_t rx_buffer[2 * rx_mtu];
-    // размер буффера (т.к в rx/tx mtu находится кол-во семплов, а в одном семпле 2 числа типа int16_t)
-    //int tx_buffer_size =  tx_mtu * 2;
-    // Выделяем память под буферы RX и TX
-    //int bits_count;
-    //uint8_t* bits = stob(MESSAGE, &bits_count);
-    //int tx_mtu = bits_count * TAU;
-    //int16_t* tx_buff = parabola_signal(tx_mtu);
-    //заполнение tx_buff значениями сэмплов первые 16 бит - I, вторые 16 бит - Q.
-
-    // for(int i = 0; i < tx_mtu * 2; i+=2){
-    //     fprintf(tx_samples, "(%d,%d),", tx_buff[i], tx_buff[i+1]);
-    // }
-
-    
-
-    //prepare fixed bytes in transmit buffer
-    //we transmit a pattern of FFFF FFFF [TS_0]00 [TS_1]00 [TS_2]00 [TS_3]00 [TS_4]00 [TS_5]00 [TS_6]00 [TS_7]00 FFFF FFFF
-    //that is a flag (FFFF FFFF) followed by the 64 bit timestamp, split into 8 bytes and packed into the lsb of each of the DAC words.
-    //DAC samples are left aligned 12-bits, so each byte is left shifted into place
-    // for(size_t i = 0; i < 2; i++)
-    // {
-    //     tx_buff[0 + i] = 0xffff;
-    //     // 8 x timestamp words
-    //     tx_buff[10 + i] = 0xffff;
-    // }
-
-
-    // read pcm file
     size_t sample_count = 0;
-    int16_t* audio_samples = read_pcm(PATH_TO_AUDIO, &sample_count);
-    printf("%d", audio_samples);
+    int16_t *samples = read_pcm(PATH_TO_AUDIO, &sample_count);
 
-    for(int offset = 0; offset < sample_count; offset += 1920){
+    printf("Size: %d\n\n", sample_count);
 
-        // Количество итерация чтения из буфера
-        size_t iteration_count = 6;
-        const long  timeoutUs = 400000;
-        long long last_time = 0;
+    // Выделяем память под буферы RX и TX
+    int16_t tx_buff[2 *tx_mtu];
+    int16_t rx_buffer[2 *rx_mtu];
 
-        // Начинается работа с получением и отправкой сэмплов
+    FILE *tx_data = fopen("txdata1.pcm", "w");
+    FILE *rx_data = fopen("rxdata1.pcm", "w");
 
+    long long timeoutUs = 400000;
+    long long last_time = 0;
+
+    int buffers_read = 1;
+    // Начинается работа с получением и отправкой сэмплов
+    for (size_t offset = 0; offset < sample_count; offset += 1920 * 2)
+    {
         void *rx_buffs[] = {rx_buffer};
         int flags;        // flags set by receive operation
         long long timeNs; //timestamp for receive buffer
@@ -238,13 +209,11 @@ int main(){
         int sr = SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, rx_mtu, &flags, &timeNs, timeoutUs);
 
         // Смотрим на количество считаных сэмплов, времени прихода и разницы во времени с чтением прошлого буфера
-        //printf("Buffer: %lu - Samples: %i, Flags: %i, Time: %lli, TimeDiff: %lli\n", buffers_read, sr, flags, timeNs, timeNs - last_time);
-        last_time = timeNs;
-        // пишем в файл
+        printf("Buffer: %lu - Samples: %i, Flags: %i, Time: %lli, TimeDiff: %llins \n", buffers_read++, sr, flags, timeNs, timeNs - last_time);
 
-        for(int i = 0; i < rx_mtu*2; i++){
-            fprintf(rx_samples, "(%d,%d), ", rx_buffer[i], rx_buffer[i+1]);
-        }
+        last_time = timeNs;
+
+        fwrite(rx_buffer, 2 * rx_mtu * sizeof(int16_t), 1, rx_data);
 
         // Переменная для времени отправки сэмплов относительно текущего приема
         long long tx_time = timeNs + (4 * 1000 * 1000); // на 4 [мс] в будущее
@@ -257,27 +226,22 @@ int main(){
         // }
 
         // Здесь отправляем наш tx_buff массив
+        if(offset + 1920 * 2 >= sample_count)
+            break;
 
-        
+        void *tx_buffs[] = {samples + offset};
+        fwrite(samples + offset, 2 * rx_mtu * sizeof(int16_t), 1, tx_data);
+        printf("offset: %d", offset);
         flags = SOAPY_SDR_HAS_TIME;
-        int st = SoapySDRDevice_writeStream(sdr, txStream, (const void * const*)audio_samples + offset, tx_mtu, &flags, tx_time, timeoutUs);
+        int st = SoapySDRDevice_writeStream(sdr, txStream, (const void * const*)tx_buffs, tx_mtu, &flags, tx_time, timeoutUs);
         if ((size_t)st != tx_mtu)
         {
-            printf("TX Failed: %i\n", st);
+            printf("TX Failed: %in", st);
         }        
     }
 
-    //stop streaming
-    SoapySDRDevice_deactivateStream(sdr, rxStream, 0, 0);
-    SoapySDRDevice_deactivateStream(sdr, txStream, 0, 0);
-
-    //shutdown the stream
-    SoapySDRDevice_closeStream(sdr, rxStream);
-    SoapySDRDevice_closeStream(sdr, txStream);
-
-    //cleanup device handle
-    SoapySDRDevice_unmake(sdr);
-    fclose(rx_samples);
+    fclose(rx_data);
+    fclose(tx_data);
 
     return 0;
 }
