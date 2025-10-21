@@ -3,7 +3,6 @@ import librosa
 from pydub import AudioSegment
 
 mp3_file = "audio_test.mp3"
-new_mp3_file = "audio_from_pcm.mp3"
 pcm_file = "audio_bin.pcm"
 
 # mp3 to pcm

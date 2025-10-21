@@ -42,27 +42,52 @@ def main():
                 complex_samples.append(complex(int(i), int(q)))
 
     
-    I_symbols = []
-    Q_symbols = []
-    Fs = 1000
-    
-    for sample in complex_samples:
-        I_symbols.extend([sample.real] * Fs)
-        Q_symbols.extend([sample.imag] * Fs)
+    L = 1000
+    I_symbols = [x.real for x in complex_samples]
+    Q_symbols = [x.imag for x in complex_samples]
 
-    t = np.arange(0, len(I_symbols)/Fs, dt/Fs)
+
+    I_upsampling = []
+    Q_upsampling = []
+
+    for x in I_symbols:
+        I_upsampling.append(x)
+        I_upsampling.extend([0] * (L-1))
+    
+    for x in Q_symbols:
+        Q_upsampling.append(x)
+        Q_upsampling.extend([0] * (L-1))
+
+    g = [1] * L
+
+    s_I = []
+    s_Q = []
+
+    for n in range(len(I_upsampling)):
+        tmp_I = 0
+        tmp_Q = 0
+        for m in range(L):
+            if n - m >= 0:
+                tmp_I += I_upsampling[n-m]*g[m]
+                tmp_Q+= Q_upsampling[n-m]*g[m]
+        s_I.append(tmp_I)
+        s_Q.append(tmp_Q)
+
+    t = np.arange(0, len(I_upsampling)/L, dt/L)
+
+    g = [1] * 10
     
     print(t)
 
     plt.subplot(2, 1, 1)
-    plt.step(t, I_symbols)
+    plt.step(t, s_I)
     plt.title(f"{modulation_type.upper()} I Signal")
     plt.xlabel("t")
     plt.ylabel("A")
     plt.grid(True)
     
     plt.subplot(2, 1, 2)
-    plt.step(t, Q_symbols)
+    plt.step(t, s_Q)
     plt.title(f"{modulation_type.upper()} Q Signal")
     plt.xlabel("t")
     plt.ylabel("A")
@@ -72,8 +97,8 @@ def main():
     
     f = 1
     
-    I_comp = I_symbols*np.cos(2*np.pi*f*t)
-    Q_comp = Q_symbols*(-np.sin(2*np.pi*f*t))
+    I_comp = s_I*np.cos(2*np.pi*f*t)
+    Q_comp = s_Q*(-np.sin(2*np.pi*f*t))
     
     
     plt.subplot(3, 1, 1)
