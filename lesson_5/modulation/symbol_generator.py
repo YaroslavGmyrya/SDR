@@ -42,11 +42,10 @@ def main():
                 complex_samples.append(complex(int(i), int(q)))
 
     
-    L = 1000
     I_symbols = [x.real for x in complex_samples]
     Q_symbols = [x.imag for x in complex_samples]
 
-
+    L = 1000
     I_upsampling = []
     Q_upsampling = []
 
@@ -74,11 +73,7 @@ def main():
         s_Q.append(tmp_Q)
 
     t = np.arange(0, len(I_upsampling)/L, dt/L)
-
-    g = [1] * 10
     
-    print(t)
-
     plt.subplot(2, 1, 1)
     plt.step(t, s_I)
     plt.title(f"{modulation_type.upper()} I Signal")
