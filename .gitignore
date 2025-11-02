@@ -2,6 +2,3 @@
 *.txt
 /lesson_*/build
 !/lesson_*/CMakeLists.txt
-lesson_5-6/my_venv
-lesson_7/my_venv
-lesson_7/my_venv
