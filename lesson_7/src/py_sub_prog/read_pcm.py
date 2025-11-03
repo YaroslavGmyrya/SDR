@@ -24,9 +24,17 @@ with open(name, "rb") as f:
         index += 1
 
         
-plt.figure(1)
-plt.scatter((real)[6000:],(imag)[6000:],color='red')  # Используем scatter для диаграммы созвездия
+plt.subplot(2, 1, 1)
+plt.scatter((real)[6000:],(imag)[6000:],color='red')
 plt.xlabel("I")
 plt.ylabel("Q")
 plt.title("Signal constellation")
+
+plt.subplot(2, 1, 2)
+plt.plot(count, real, color='blue')
+plt.plot(count, imag, color='red')
+plt.xlabel("time")
+plt.ylabel("S(t)")
+plt.title("Signal")
+
 plt.show()
