@@ -14,7 +14,7 @@ int main(){
     SoapySDRKwargs args = {};
     SoapySDRKwargs_set(&args, "driver", "plutosdr");        // Говорим какой Тип устройства 
     if (1) {
-        SoapySDRKwargs_set(&args, "uri", "usb:3.9.5");           // Способ обмена сэмплами (USB)
+        SoapySDRKwargs_set(&args, "uri", "usb:3.6.5");           // Способ обмена сэмплами (USB)
     } else {
         SoapySDRKwargs_set(&args, "uri", "ip:192.168.3.10"); // Или по IP-адресу
     }

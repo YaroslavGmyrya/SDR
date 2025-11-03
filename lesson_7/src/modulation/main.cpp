@@ -6,7 +6,7 @@
 #include "../../includes/subfuncs.h"
 
 int main(){
-    FILE* bpsk_samples = fopen("bpsk_samples.pcm", "w");
+    FILE* bpsk_samples = fopen("qpsk_samples.pcm", "w");
 
     //impulse response
     int g[] = {1,1,1,1,1,1,1,1,1,1};
@@ -17,7 +17,7 @@ int main(){
 
     //translate bits to symbols (I, Q)
     int symbols_count = 0;
-    int* symbols = BPSK_modulation(bits, bits_count, &symbols_count); 
+    int* symbols = QPSK_modulation(bits, bits_count, &symbols_count); 
 
     //translate IQ to upsampling IQ
     int ups_symbols_count = 0;
@@ -27,9 +27,9 @@ int main(){
     int samples_count = 0;
     int16_t* samples = ps_filter(ups_symbols, ups_symbols_count, SAMPLES_ON_BIT, g, &samples_count);
 
-    for(int i = 0; i < samples_count; ++i){
-        printf("%d ", samples[i]);
-    }
+    // for(int i = 0; i < samples_count; ++i){
+    //     printf("%d ", samples[i]);
+    // }
 
     //write samples to file
     fwrite(samples, samples_count * sizeof(int16_t), 1, bpsk_samples);
