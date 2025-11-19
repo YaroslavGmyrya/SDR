@@ -11,7 +11,7 @@ int main(){
     
     size_t samples_count = 0;
 
-    int16_t* samples = read_pcm("txdata1.pcm", &samples_count);
+    int16_t* samples = read_pcm("bpsk_samples.pcm", &samples_count);
 
     if(samples == nullptr){
         printf("File not found!\n");
@@ -26,7 +26,7 @@ int main(){
 
     printf("\n");
 
-    double h[] = {1,1,1,1,1,1,1,1,1,1};
+    int h[] = {1,1,1,1,1,1,1,1,1,1};
 
     // int bits_count = 0;
     // uint8_t* bits = stob(MESSAGE, &bits_count);
@@ -64,16 +64,16 @@ int main(){
     // int samples_count = 0;
     // double* samples = ps_filter(up_symbs, up_symbs_count, 10, h, &samples_count);
 
-    printf("Samples before down sampling:\n");
+    // printf("Samples:\n");
 
-    for(int i = 0; i < samples_count; ++i){
-        printf("%d ", samples[i]);
-    }
+    // for(int i = 0; i < samples_count; ++i){
+    //     printf("%d ", samples[i]);
+    // }
 
-    printf("\n");
+    // printf("\n");
 
     int conv_size = 0;
-    int16_t* conv = match_filter(samples, samples_count, 10, h, &conv_size);
+    int* conv = match_filter(samples, samples_count, 10, h, &conv_size);
 
     printf("After convolve:\n");
 
@@ -84,7 +84,7 @@ int main(){
     printf("\n");
 
 
-    int16_t* ds_samples = down_sampling(conv, samples_count, 10, 0);
+    int* ds_samples = down_sampling(conv, samples_count, 10, 0);
 
     printf("Samples after down sampling:\n");
 
@@ -96,7 +96,7 @@ int main(){
 
     double* down_scale_samples = down_scaler(ds_samples, samples_count/10);
 
-    printf("Down scaling:\n");
+    printf("Samples after downscaling:\n");
 
     for(int i = 0; i < conv_size/10; ++i){
         printf("%f ", down_scale_samples[i]);
@@ -107,9 +107,9 @@ int main(){
 
     int16_t* q_samples = BPSK_quantizater(down_scale_samples, samples_count/10);
 
-    printf("q samples:\n");
+    printf("rounded symbols:\n");
 
-    for(int i = 0; i < 20; ++i){
+    for(int i = 0; i < samples_count/10; ++i){
         printf("%d ", q_samples[i]);
     }
 

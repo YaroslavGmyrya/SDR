@@ -21,11 +21,11 @@
 //     return upsampling_symbols;
 // }
 
-double* upsampling(double* symbols, int symbols_count, int L, int* out_size){
+int16_t* upsampling(int16_t* symbols, int symbols_count, int L, int* out_size){
 
     // L - samples on symbols
     *out_size = symbols_count * L;
-    double* upsampling_symbols = (double*)malloc((symbols_count * L) * sizeof(double));
+    int16_t* upsampling_symbols = (int16_t*)malloc((symbols_count * L) * sizeof(int16_t));
     int cur_pos = 0;
 
     //iterate on symbols

@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-double* BPSK_modulation(uint8_t* bits, int bits_count, int* symbols_count){
+int16_t* BPSK_modulation(uint8_t* bits, int bits_count, int* symbols_count){
     *symbols_count = bits_count * 2;
 
-    double* IQ_samples = (double*)malloc(sizeof(double) * bits_count * 2);
+    int16_t* IQ_samples = (int16_t*)malloc(sizeof(int16_t) * bits_count * 2);
     
     int j = 0;
     for(int i = 0; i < bits_count * 2; i+=2){

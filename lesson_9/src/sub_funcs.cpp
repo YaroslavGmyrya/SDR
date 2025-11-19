@@ -169,7 +169,7 @@ int* IQ_merge(int* I_samples, int* Q_samples, int size, int* merge_size){
     return merged;
 }
 
-double max(int16_t* arr, int arr_size){
+double max(int* arr, int arr_size){
     double max = -__DBL_MAX__;
     for(int i = 0; i < arr_size; ++i){
         if(arr[i] > max){
@@ -180,12 +180,12 @@ double max(int16_t* arr, int arr_size){
     return max;
 }
 
-double* down_scaler(int16_t* samples, int samples_count){
+double* down_scaler(int* samples, int samples_count){
     double* down_scale_samples = (double*)malloc(samples_count * sizeof(double));
 
     double max_value = max(samples, samples_count);
 
-    for(int i = 0; i < samples_count; i+=2){
+    for(int i = 0; i < samples_count; ++i){
         down_scale_samples[i] = samples[i] / max_value;
     }
 
@@ -196,8 +196,8 @@ int16_t* up_scaler(int16_t* samples, int samples_count){
 
     int16_t* up_scale_samples = (int16_t*)malloc(samples_count * sizeof(int16_t));
 
-    for(int i = 0; i < samples_count; i+=2){
-        samples[i] *= 2047 << 4;
+    for(int i = 0; i < samples_count; i++){
+        up_scale_samples[i] = samples[i] * (2047 << 4);
     }
 
     return up_scale_samples;
