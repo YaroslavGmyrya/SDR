@@ -8,7 +8,7 @@
 #define TAU_ON_ELEMENT 20
 #define MESSAGE "HHJOHVIDOISFJVDVSDBNSGSFBGDSFBLDDASFJVADSFBJFADVSFBFSAKFSKAFSBNFAVFKSNKFKSBNBAKFSBNFAKSBNFAMKSBNFVALMSBFNFKAVLMKSBFAFSBNKAVKSBF"
 #define PATH_TO_AUDIO "../audio_converter/audio_bin.pcm"
-#define PATH_TO_PCM "qpsk_samples.pcm"
+#define PATH_TO_PCM "bpsk_samples.pcm"
 
 uint8_t* stob(char* str, int* out_bits_count);
 char* btos(int8_t* bits, int bits_size, int* str_len);
