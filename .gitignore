@@ -1,4 +1,1 @@
-*.out
-*.txt
-/lesson_*/build
-!/lesson_*/CMakeLists.txt
+/build
