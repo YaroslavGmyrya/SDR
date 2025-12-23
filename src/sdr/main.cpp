@@ -54,7 +54,7 @@ int main(int argc, char* argv[]){
     //Настройка параметров устройств TXRX:
 
     int sample_rate = 1e6;
-    int carrier_freq = 734750e3;
+    int carrier_freq = 1500e6;
     // Параметры RX части
     SoapySDRDevice_setSampleRate(sdr, SOAPY_SDR_RX, 0, sample_rate);
     SoapySDRDevice_setFrequency(sdr, SOAPY_SDR_RX, 0, carrier_freq , NULL);
@@ -66,8 +66,8 @@ int main(int argc, char* argv[]){
     // Инициализация количества каналов RXTX (в AdalmPluto он один, нулевой)
     size_t channels[] = {0};
     // Настройки усилителей на RXTX
-    SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, channels[0], 10.0); // Чувствительность приемника
-    SoapySDRDevice_setGain(sdr, SOAPY_SDR_TX, channels[0], -90.0);// Усиление передатчика
+    SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, channels[0], 65.0); // Чувствительность приемника
+    SoapySDRDevice_setGain(sdr, SOAPY_SDR_TX, channels[0], -30.0);// Усиление передатчика
 
     //Инициализация потоков (stream) для передачи и примема сэмплов:
 
