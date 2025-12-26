@@ -24,4 +24,5 @@ void Transmitter::processing(){
 
     samples = upscaling(psf_symbols);
 
+    write2pcm();
 }

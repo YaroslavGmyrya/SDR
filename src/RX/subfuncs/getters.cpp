@@ -14,7 +14,8 @@ std::vector<std::complex<int16_t>> Receiver::get_samples() {return samples;};
 int Receiver::get_L() {return L;};
 
 void Receiver::get_info() {
-    std::cout << "message: " << message << "\n\n";
+    std::cout << "########################################### RX log info ###################################################\n\n";
+
     std::cout << "filename: " << filename << "\n\n";
     std::cout << "demodulation type: " << demodulation_type << "\n\n";
 

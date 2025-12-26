@@ -46,6 +46,9 @@ class Receiver{
         std::map<std::complex<double>, int16_t, ComplexLess> QAM16_demapper_table_generator();
 
         std::vector<std::complex<double>> BPSK_quantizater(std::vector<std::complex<double>> symbols);
+        std::vector<std::complex<double>> QPSK_quantizater(std::vector<std::complex<double>> symbols);
+        std::vector<std::complex<double>> QAM16_quantizater(std::vector<std::complex<double>> symbols);
+
         std::string bin2str(const std::vector<int16_t>& bits);
 
 

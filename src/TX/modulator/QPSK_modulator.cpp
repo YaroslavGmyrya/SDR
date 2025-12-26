@@ -12,8 +12,8 @@ std::vector<std::complex<double>> Transmitter::QPSK_modulator(const std::vector<
     for(int i = 0; i < bits.size(); i+=2){
         int map_key = 0;
 
-        map_key |= bits[i];
-        map_key |= bits[i+1] << 1;
+        map_key |= bits[i] << 1;
+        map_key |= bits[i+1];
 
         symbols[j++] = QPSK_mapper_table[map_key];
     }

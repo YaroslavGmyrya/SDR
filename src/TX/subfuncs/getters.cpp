@@ -14,6 +14,7 @@ std::vector<std::complex<int16_t>> Transmitter::get_samples() {return samples;};
 int Transmitter::get_L() {return L;};
 
 void Transmitter::get_info() {
+    std::cout << "########################################### TX log info ###################################################\n\n";
     std::cout << "message: " << message << "\n\n";
 
     std::cout << "L: " << L << "\n\n";
@@ -23,7 +24,7 @@ void Transmitter::get_info() {
     std::cout << "\n\n";
 
     if(modulation_type == "BPSK"){
-        std::cout << "BPSK demapper table:\n";
+        std::cout << "BPSK mapper table:\n";
 
         for (const auto& [key, value] : BPSK_mapper_table) {
             print_vector(dec2bin(key, 1));
@@ -32,7 +33,7 @@ void Transmitter::get_info() {
     }
 
     else if(modulation_type == "QPSK"){
-        std::cout << "QPSK demapper table:\n";
+        std::cout << "QPSK mapper table:\n";
 
         for (const auto& [key, value] : QPSK_mapper_table) {
             print_vector(dec2bin(key, 2));
@@ -41,7 +42,7 @@ void Transmitter::get_info() {
     }
 
     else if(modulation_type == "QAM16"){
-        std::cout << "QAM16 demapper table:\n";  
+        std::cout << "QAM16 mapper table:\n";  
 
         for (const auto& [key, value] : QAM16_mapper_table) {
             print_vector(dec2bin(key, 4));

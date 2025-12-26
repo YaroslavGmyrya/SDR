@@ -43,6 +43,9 @@ class Transmitter{
         std::map<int16_t, std::complex<double>> QPSK_mapper_table_generator();
         std::map<int16_t, std::complex<double>> QAM16_mapper_table_generator();
 
+        std::vector<int16_t> generate_barker_code(int N);
+        std::vector<int16_t> add_barker_to_message(std::vector<int16_t> bits, std::vector<int16_t> barker_code);
+
         /*subfuncs*/
         template <typename T>
         void print_vector(const std::vector<T>& vector);

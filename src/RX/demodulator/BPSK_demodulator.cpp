@@ -6,10 +6,10 @@
 
 //BPSK symbols -> bits
 std::vector<int16_t> Receiver::BPSK_demodulator(const std::vector<std::complex<double>>& symbols){
-    std::vector<int16_t> bits(symbols.size());
+    std::vector<int16_t> bits;
     
     for (int i = 0; i < symbols.size(); ++i) {
-        bits[i] = BPSK_demapper_table[symbols[i]];
+        bits.push_back(BPSK_demapper_table[symbols[i]]);
     }
 
     return bits;

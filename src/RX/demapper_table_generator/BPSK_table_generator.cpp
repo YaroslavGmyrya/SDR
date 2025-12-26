@@ -12,7 +12,7 @@ std::map<std::complex<double>, int16_t, ComplexLess> Receiver::BPSK_demapper_tab
         double I = 1/sqrt(2) * (1 - 2*bit);
         double Q = 1/sqrt(2) * (1 - 2*bit);
 
-        BPSK_demapper_table[{I,Q}] = bit;
+        BPSK_demapper_table[std::complex<double>(I,Q)] = bit;
     }
 
     return BPSK_demapper_table;

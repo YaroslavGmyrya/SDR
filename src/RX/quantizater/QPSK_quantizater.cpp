@@ -3,13 +3,14 @@
 
 #include "../../../includes/Receiver.hpp"
 
-std::vector<std::complex<double>> Receiver::BPSK_quantizater(std::vector<std::complex<double>> symbols){
-    std::vector<std::complex<double>> true_constellation_point(2);
+std::vector<std::complex<double>> Receiver::QPSK_quantizater(std::vector<std::complex<double>> symbols){
+    std::vector<std::complex<double>> true_constellation_point;
 
     std::vector<std::complex<double>> quantizate_symbols(symbols.size());
 
-    for(const auto& item : BPSK_demapper_table){
-        true_constellation_point.push_back(item.first);
+    for(const auto& item : QPSK_demapper_table){
+        if(item.first != std::complex<double>({0,0}))
+            true_constellation_point.push_back(item.first);
     }
 
     for(int i = 0; i < symbols.size(); ++i){
@@ -25,9 +26,8 @@ std::vector<std::complex<double>> Receiver::BPSK_quantizater(std::vector<std::co
 
             if(cur_d < prev_d){
                 index = j;
+                prev_d = cur_d;
             }
-
-            prev_d = cur_d;
         }
 
         quantizate_symbols[i] = true_constellation_point[index];

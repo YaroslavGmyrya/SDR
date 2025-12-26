@@ -21,5 +21,5 @@ void Transmitter::write2pcm(){
 
     file.close();
 
-    std::cout << "Samples write in " << filename << ".pcm\n\n";
+    std::cout << "Samples write in " << filename << "\n\n";
 }

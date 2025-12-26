@@ -7,7 +7,7 @@
 
 std::vector<int16_t> Receiver::gardner(const std::vector<std::complex<double>>& samples){
     double Kp = 4;
-    double BnTs = 0.01;
+    double BnTs = 0.005;
 
     double zeta = std::sqrt(2) / 2;
     double theta = (BnTs / 10) / (zeta + 1 / (4 * zeta));
@@ -18,6 +18,7 @@ std::vector<int16_t> Receiver::gardner(const std::vector<std::complex<double>>& 
 
     double p1 = 0;
     double p2 = 0;
+
     int offset = L/2;
     double e = 0;
 
@@ -25,7 +26,9 @@ std::vector<int16_t> Receiver::gardner(const std::vector<std::complex<double>>& 
 
     std::vector<int16_t> offset_list;
 
-    for (int i = 0; i < samples.size() / L; ++i) {
+    int max_i = samples.size() % L == 0 ? samples.size() / L : samples.size() / L + 1;
+
+    for (int i = 0; i < max_i; ++i) {
         n = offset + L * i;
 
         e = (samples[n + L].real() - samples[n].real()) * samples[n + L/2].real() +
