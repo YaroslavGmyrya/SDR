@@ -2,44 +2,68 @@
 #include <vector>
 #include <complex>
 #include <string>
+#include <fstream>
 
 #include "../includes/Transmitter.hpp"
 #include "../includes/Receiver.hpp"
+#include "../includes/general/subfuncs.hpp"
 
 int main(int argc, char* argv[]){
-    /*get flags*/
-    if (argc > 2){
-        printf("Error: program wait 1 command line argument, but get %d", argc-1);
-        return 1;
-    }
-
-    bool logs_enable = std::string(argv[1]) == std::string("-l");
-
-    /*General parameters*/
-
-    const int SPS = 10; //samples per symbol
-    const std::vector<double> impulse_response = {1,1,1,1,1,1,1,1,1,1}; //pulse-shaping/match filter impulse response
-
     /*TX parameters*/
+    const int SPS = 10;
+    std::string message("YaroslavGmyrya");
+    std::vector<double> impulse_response = {1,1,1,1,1,1,1,1,1,1};
+
+
+    transmitter TX;
+
+    /*TX work logic*/
+
+    std::vector<int16_t> bits = TX.coder_.ascii_str2bin(message);
+
+    std::vector<std::complex<double>> symbols = TX.modulator_.QAM_modulation(4, bits);
+
+    std::vector<std::complex<double>> ups_symbols = TX.filter_.upsampling(symbols, SPS);
+
+    std::vector<std::complex<double>> samples = TX.filter_.convolve(ups_symbols, impulse_response, SPS);
+
+    std::vector<std::complex<int16_t>> scale_samples = upscaling(samples);
+
+    std::ofstream log_file("TX_log.txt");
+
+    log_file << "#################### TX parameters #####################\n\n";
+    log_file << "message: " << message << "\n\n";
+    log_file << "SPS: " << SPS << "\n\n";
     
-    const std::string TX_message("Mr. and Mrs. Smith have one son and one daughter. The son's name is John. The daughter's name is Sarah. The Smiths live in a house. They have a living room. They watch TV in the living room. The father cooks food in the kitchen. They eat in the dining room. The house has two bedrooms. They sleep in the bedrooms. They keep their clothes in the closet. There is one bathroom. They brush their teeth in the bathroom. The house has a garden. John and Sarah play in the garden. They have a dog. John and Sarah like to play with the dog.");
-    const std::string pcm_file("../pcm/tx_samples.pcm"); //TX write samples in this file, RX read samples from file
-    const std::string modulation_type("QPSK"); //modulation/demodulation type
+    log_file << "impulse response: ";
+    for(const double& el : impulse_response)
+        log_file << el << " ";
+    log_file << "\n\n";
 
-    /*TX parameters*/
-    
-    Transmitter TX(TX_message, pcm_file, modulation_type, SPS, impulse_response);
+    log_file << "#################### TX work #####################\n\n";
 
-    TX.processing(); //generate samples
+    log_file << "bits: ";
+    for(const double& el : bits)
+        log_file << el << " ";
+    log_file << "\n\n";
 
-    Receiver RX(pcm_file, modulation_type, SPS, impulse_response);
+    log_file << "symbols: ";
+    for(const std::complex<double>& el : symbols)
+        log_file << el << " ";
+    log_file << "\n\n";
 
-    RX.processing(); //processing samples
+    log_file << "ups_symbols: ";
+    for(const std::complex<double>& el : ups_symbols)
+        log_file << el << " ";
+    log_file << "\n\n";
 
-    if(logs_enable){
-        /*print log info*/
-        TX.get_info();
-        RX.get_info();
-    }
+    log_file << "scale samples: ";
+    for(const std::complex<int16_t>& el :scale_samples)
+        log_file << el << " ";
+    log_file << "\n\n";
+
+    log_file.close();
+
+
     return 0;
 }

@@ -13,6 +13,7 @@ cmake_minimum_required(VERSION 3.16)
 file(GLOB_RECURSE RX_TX_test
     "src/TX/*.cpp"
     "src/RX/*.cpp"
+    "src/general/*.cpp"
     "tests/TX_RX_test.cpp"
 )
 

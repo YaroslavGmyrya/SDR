@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <iostream>
 
-#include "../../../includes/Receiver.hpp"
+#include "../../../includes/RX/decoder.hpp"
 
-std::string Receiver::bin2str(const std::vector<int16_t>& bits) {
+std::string decoder::bin2str(const std::vector<int16_t>& bits) {
     if (bits.size() % 8 != 0) {
         std::cout << "Bits must have size % 8!\n";
         return {};

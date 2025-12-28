@@ -1,9 +1,9 @@
+#include "../../../includes/TX/coder.hpp"
 #include <string>
-#include <vector>
-#include "../../../includes/Transmitter.hpp"
+#include <cstdint>
 
 //string -> bits
-std::vector<int16_t> Transmitter::str2bin(const std::string& message){
+std::vector<int16_t> coder::ascii_str2bin(const std::string& message){
 
     std::vector<int16_t> bits(message.size() * sizeof(char) * 8);
 
