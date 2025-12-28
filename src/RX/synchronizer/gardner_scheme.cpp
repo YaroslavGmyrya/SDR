@@ -7,7 +7,7 @@
 
 std::vector<int16_t> synchronizer::gardner(const std::vector<std::complex<double>>& samples, int const L){
     double Kp = 4;
-    double BnTs = 0.005;
+    double BnTs = 0.000005; 
 
     double zeta = std::sqrt(2) / 2;
     double theta = (BnTs / 10) / (zeta + 1 / (4 * zeta));

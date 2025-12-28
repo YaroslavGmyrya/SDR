@@ -3,7 +3,10 @@
 
 #include "../../../includes/RX/demodulator.hpp"
 
-std::vector<std::complex<double>> demodulator::QAM_quantizater(const std::vector<std::complex<double>>& symbols){
+std::vector<std::complex<double>> demodulator::QAM_quantizater(const std::vector<std::complex<double>>& symbols, const int mod_order){
+
+    QAM_demapper_table = QAM_demapper_table_generator(mod_order);
+
     std::vector<std::complex<double>> quantizate_symbols(symbols.size());
     std::vector<std::complex<double>> true_constellation_point;
     

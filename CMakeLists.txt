@@ -10,16 +10,25 @@ cmake_minimum_required(VERSION 3.16)
 #     src/sdr/main.cpp
 # )
 
-file(GLOB_RECURSE RX_TX_test
+set(CMAKE_BUILD_TYPE Debug)
+
+file(GLOB_RECURSE TX_test
     "src/TX/*.cpp"
-    "src/RX/*.cpp"
     "src/general/*.cpp"
-    "tests/TX_RX_test.cpp"
+    "tests/TX_test.cpp"
+)
+
+file(GLOB_RECURSE RX_test
+    "src/RX/*.cpp"
+    "src/TX/*.cpp"
+    "src/general/*.cpp"
+    "tests/RX_test.cpp"
 )
 
 
 # Добавляем исполняемый файл
-add_executable(RX_TX_test ${RX_TX_test})
+add_executable(TX_test ${TX_test})
+add_executable(RX_test ${RX_test})
 # add_executable(SDR ${SDR_SOURCE_FILES})
 
 # Линкуем библиотеки к исполняемому файлу

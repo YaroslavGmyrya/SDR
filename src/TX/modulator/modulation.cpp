@@ -1,21 +1,26 @@
 #include "../../../includes/TX/modulator.hpp"
 
 std::vector<std::complex<double>> modulator::QAM_modulation(const int mod_order,const std::vector<int16_t>& bits){
-    std::vector<std::complex<double>> symbols(bits.size() / mod_order);
+    int bits_per_symbol = static_cast<int>(std::log2(mod_order));
 
-    if(prev_mod_order != mod_order) QAM_mapper_table = QAM_mapper_table_generator(mod_order);
+    std::vector<std::complex<double>> symbols;
+    symbols.reserve(bits.size() / bits_per_symbol);
 
-    int j = 0;
+    if(prev_mod_order != mod_order){
+        QAM_mapper_table = QAM_mapper_table_generator(mod_order);
+        prev_mod_order = mod_order;
+    }
 
     /*get bits block*/
-    for(int i = 0; i < bits.size(); i+=mod_order){
+    for (int i= 0; i + bits_per_symbol <= bits.size(); i += bits_per_symbol){
         int map_key = 0;
+
         /*bits to dec (key of mapper table)*/
-        for(int m = 0; m < mod_order; ++m){
-            map_key = (map_key << m) | bits[i+m] << m;
+        for(int m = 0; m < bits_per_symbol; ++m){
+            map_key = (map_key << 1) | (bits[i + m] & 1);
         }
 
-        symbols[j++] = QAM_mapper_table[map_key];
+        symbols.push_back(QAM_mapper_table.at(map_key));
     }
 
 

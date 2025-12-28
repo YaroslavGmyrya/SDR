@@ -1,8 +1,6 @@
 #include "../../../includes/TX/overhead_encoder.hpp"
 
-std::vector<int16_t> overhead_encoder::add_barker_to_message(const std::vector<int16_t>& bits, const int barker_len){
-    std::vector<int16_t> barker_code = generate_barker_code(barker_len);
-
+std::vector<int16_t> overhead_encoder::add_barker_to_message(const std::vector<int16_t>& bits, const std::vector<int16_t>& barker_code){
     if(barker_code.size() == 0) return {};
 
     std::vector<int16_t> new_bits;
