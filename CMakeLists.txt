@@ -1,24 +1,24 @@
 cmake_minimum_required(VERSION 3.16)
-# project(PlutoSDR CXX)
-
-# set(CMAKE_BUILD_TYPE Debug)
-
-# # Ищем библиотеку SoapySDR
-# find_package(SoapySDR REQUIRED)
-
-# set(SDR_SOURCE_FILES
-#     src/sdr/main.cpp
-# )
+project(PlutoSDR CXX)
 
 set(CMAKE_BUILD_TYPE Debug)
 
-file(GLOB_RECURSE TX_test
+# Ищем библиотеку SoapySDR
+find_package(SoapySDR REQUIRED)
+
+file(GLOB_RECURSE MAIN_SOURCE_FILES
+    src/main/*.cpp
+    src/general/subfuncs/*.cpp
+)
+
+
+file(GLOB_RECURSE TX_TEST_SOURCE_FILE
     "src/TX/*.cpp"
     "src/general/*.cpp"
     "tests/TX_test.cpp"
 )
 
-file(GLOB_RECURSE RX_test
+file(GLOB_RECURSE RX_TEST_SOURCE_FILE
     "src/RX/*.cpp"
     "src/TX/*.cpp"
     "src/general/*.cpp"
@@ -27,9 +27,9 @@ file(GLOB_RECURSE RX_test
 
 
 # Добавляем исполняемый файл
-add_executable(TX_test ${TX_test})
-add_executable(RX_test ${RX_test})
-# add_executable(SDR ${SDR_SOURCE_FILES})
+add_executable(TX_test ${TX_TEST_SOURCE_FILE})
+add_executable(RX_test ${RX_TEST_SOURCE_FILE})
+add_executable(main ${MAIN_SOURCE_FILES})
 
 # Линкуем библиотеки к исполняемому файлу
-# target_link_libraries(SDR ${SoapySDR_LIBRARIES})
+target_link_libraries(main ${SoapySDR_LIBRARIES})

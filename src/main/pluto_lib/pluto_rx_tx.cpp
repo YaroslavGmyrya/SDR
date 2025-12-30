@@ -46,14 +46,17 @@ void start_rx(struct SoapySDRDevice *sdr, SoapySDRStream *rxStream,
 }
 
 void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
-              SoapySDRStream *rxStream, int16_t *tx_samples,
-              int tx_samples_count, int16_t *rx_buffer, int16_t *tx_buffer,
-              int buff_size, int work_time) {
+              SoapySDRStream *rxStream, int16_t *rx_buffer, 
+              int16_t *samples, int tx_samples_count, int buff_size, int work_time) {
+
   /*Мы делаем прием во время передачи, потому что pluto SDR хочет получать время
   отправки, а чтобы его высчитать (у нас на 4 мс в будущее), нужно выполнить
   прием данных*/
 
   printf("TX STARTED!\n");
+
+  /*файл для отправляемых семплов*/
+  FILE* txdata = fopen("tx_data.pcm", "wb");
 
   const long timeoutUs = 400000; // arbitrarily chosen (взяли из srsRAN)
 
@@ -62,8 +65,7 @@ void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
   long long last_time = 0;
 
   while (difftime(time(NULL), start) < work_time) {
-    for (size_t offset = 0; offset < tx_samples_count;
-         offset += buff_size * 2) {
+    for (size_t offset = 0; offset < tx_samples_count; offset += buff_size * 2) {
       void *rx_buffs[] = {rx_buffer};
       int flags;        // flags set by receive operation
       long long timeNs; // timestamp for receive buffer
@@ -89,16 +91,16 @@ void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
       void *tx_buffs[] = {samples + offset};
 
       /*для отладки пишем отправляемые семплы в файл*/
-      fwrite(samples + offset, 2 * rx_mtu * sizeof(int16_t), 1, tx_data);
+      fwrite(samples + offset, 2 * buff_size * sizeof(int16_t), 1, txdata);
 
       flags = SOAPY_SDR_HAS_TIME;
 
       /*функция для отправки*/
       int st = SoapySDRDevice_writeStream(sdr, txStream,
-                                          (const void *const *)tx_buffs, tx_mtu,
+                                          (const void *const *)tx_buffs, buff_size,
                                           &flags, tx_time, timeoutUs);
       /*проверка ошибки отправки*/
-      if ((size_t)st != tx_mtu) {
+      if ((size_t)st != buff_size) {
         printf("TX Failed: %in", st);
       }
     }

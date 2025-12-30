@@ -10,7 +10,7 @@ struct SoapySDRDevice *setup_pluto_sdr(sdr_config_t *config) {
   char buffer_size[10]; // Allocate enough space
 
   /*define buffer_size as char-pointer*/
-  sprintf(buffer_size, "%d", config->buffer_size);
+  sprintf(buffer_size, "%d", config->buff_size);
 
   SoapySDRKwargs_set(&args, "driver", "plutosdr");
 
