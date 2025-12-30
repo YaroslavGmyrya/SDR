@@ -6,8 +6,8 @@
 #include <stdlib.h>
 
 /*Init pluto*/
-struct sdr_config_s {
-  char *name;
+struct sdr_config_t {
+  char *usb_uri;
   int buffer_size;
   int tx_sample_rate;
   int tx_carrier_freq;

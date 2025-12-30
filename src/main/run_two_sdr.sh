@@ -1,3 +1,5 @@
+#use this script, if you want run 2 sdr (one tx one rx)
+
 sudo ./../../build/SDR usb:3.5.5 0 &
 PID1=$!
 
