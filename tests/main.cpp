@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <vector>
 
-#include "../../includes/general/subfuncs.hpp"
-#include "../../includes/main/pluto_lib.hpp"
+#include "../includes/general/subfuncs.hpp"
+#include "../includes/pluto_lib/pluto_lib.hpp"
 
 int main(int argc, char *argv[]) {
 
@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
   config.tx_sample_rate = 1e6;
   config.rx_gain = 30.0;
   config.tx_gain = -40.0;
+
   std::cout << config.usb_uri << std::endl;
 
   /*files for tx/rx samples*/
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]) {
     }
 
     start_tx(sdr, txStream, rxStream, rx_buffer, uncomplex_samples.data(),
-             complex_samples.size(), config.buff_size, time_to_work);
+             complex_samples.size(), config.buff_size, txdata, time_to_work);
   } else {
     printf("Invalid mode. Enter mode=0 or mode=1");
   }

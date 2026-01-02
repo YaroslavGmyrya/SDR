@@ -17,6 +17,11 @@ void start_rx(struct SoapySDRDevice *sdr, SoapySDRStream *rxStream,
   /*open file for write receiving samples*/
   FILE *rx_samples = fopen(filename, "wb");
 
+  if(rx_samples == nullptr){
+    printf("start_rx: Error in opening file");
+    return;
+  }
+
   long long last_time = 0;
 
   int iteration = 1;
@@ -47,7 +52,7 @@ void start_rx(struct SoapySDRDevice *sdr, SoapySDRStream *rxStream,
 
 void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
               SoapySDRStream *rxStream, int16_t *rx_buffer, 
-              int16_t *samples, int tx_samples_count, int buff_size, int work_time) {
+              int16_t *samples, int tx_samples_count, int buff_size, char* filename, int work_time) {
 
   /*Мы делаем прием во время передачи, потому что pluto SDR хочет получать время
   отправки, а чтобы его высчитать (у нас на 4 мс в будущее), нужно выполнить
@@ -56,7 +61,7 @@ void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
   printf("TX STARTED!\n");
 
   /*файл для отправляемых семплов*/
-  FILE* txdata = fopen("tx_data.pcm", "wb");
+  FILE* txdata = fopen(filename, "wb");
 
   const long timeoutUs = 400000; // arbitrarily chosen (взяли из srsRAN)
 

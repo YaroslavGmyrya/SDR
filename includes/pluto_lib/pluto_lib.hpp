@@ -31,7 +31,7 @@ void start_rx(struct SoapySDRDevice *sdr, SoapySDRStream *rxStream,
 
 void start_tx(struct SoapySDRDevice *sdr, SoapySDRStream *txStream,
               SoapySDRStream *rxStream, int16_t *rx_buffer, 
-              int16_t *samples, int tx_samples_count, int buff_size, int work_time);
+              int16_t *samples, int tx_samples_count, int buff_size, char* filename ,int work_time);
 
 // // Преобразование сэмплов из двух массивов (I[N], Q[N]) в вид Pluto (buff[N*2] =
 // // {I, Q, I, Q, ..., I, Q})
