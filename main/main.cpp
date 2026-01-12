@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
   sdr_config_t config;
   config.usb_uri = argv[1];
   config.buff_size = 1920;
-  config.rx_carrier_freq = 793e6;
-  config.tx_carrier_freq = 793e6;
+  config.rx_carrier_freq = 800e6;
+  config.tx_carrier_freq = 800e6;
   config.rx_sample_rate = 1e6;
   config.tx_sample_rate = 1e6;
   config.rx_gain = 35.0;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
              rxdata, time_to_work);
   } else if (mode == 1) {
     std::vector<std::complex<int16_t>> complex_samples =
-        read_pcm(std::string("../../pcm/tx_samples.pcm"));
+        read_pcm(std::string("../pcm/tx_samples.pcm"));
 
     int uncomplex_samples_size = complex_samples.size() * 2;
     std::vector<int16_t> uncomplex_samples;

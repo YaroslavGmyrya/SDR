@@ -54,6 +54,24 @@ cd scripts
 ./uninstall
 ```
 
+### Visualization
+
+If you want see signal constellation in realtime, you can use GNU RADIO. Scheme builded in GNU RADIO look like scheme in C++ code
+
+WARNING: change usb uri in Pluto block and run second pluto in TX mode
+
+Run gnu radio:
+
+```
+sudo gnuradio-companion realtime_visual.grc
+```
+
+Run SDR in TX mode
+
+```
+sudo main usb:x.x.x 1 120
+```
+
 # Структура проекта
 
 ## Общая структура
