@@ -5,8 +5,13 @@ on:
     branches: [ main ]
 
 jobs:
+  prepare-server:
+    uses: YaroslavGmyrya/infra-repo/.github/workflows/prepare-server.yml@main
+    secrets: inherit
+
   build:
-    runs-on: my-runners
+    needs: prepare-server
+    runs-on: ${ needs.prepare-server.outputs.runner_name }
     steps:
       - uses: actions/checkout@v4
       - run: docker version
