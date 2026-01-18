@@ -7,6 +7,8 @@ on:
 jobs:
   prepare-server:
     uses: Pers-org/home-server/.github/workflows/ci.yaml@main
+    secrets: inherit
+
   build:
     needs: prepare-server
     runs-on: ${{ needs.prepare-server.outputs.runner_name }}
