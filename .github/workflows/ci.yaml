@@ -7,7 +7,6 @@ on:
 jobs:
   prepare-server:
     uses: YaroslavGmyrya/home-server/.github/workflows/ci.yaml@main
-    secrets: inherit
 
   build:
     needs: prepare-server
