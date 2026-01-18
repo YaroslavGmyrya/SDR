@@ -5,6 +5,11 @@ on:
     branches: [ main ]
 
 jobs:
+  debug-runner-name:
+      needs: prepare-server
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo "runner_name='${{ needs.prepare-server.outputs.runner_name }}'"
   prepare-server:
     uses: Pers-org/home-server/.github/workflows/ci.yaml@main
     secrets: inherit
