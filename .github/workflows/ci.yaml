@@ -16,7 +16,7 @@ jobs:
 
   build:
     needs: prepare-server
-    runs-on: ${{ needs.prepare-server.outputs.runner_name }}
+    runs-on: runners-pers-org-sdr
 
     steps:
       - uses: actions/checkout@v4
