@@ -10,7 +10,8 @@ jobs:
 
   build:
     needs: prepare-server
-    runs-on: ${ needs.prepare-server.outputs.runner_name }
+    runs-on: ${{ needs.prepare-server.outputs.runner_name }}
+
     steps:
       - uses: actions/checkout@v4
       - run: docker version
