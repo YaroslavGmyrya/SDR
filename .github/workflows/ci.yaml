@@ -6,7 +6,7 @@ on:
 
 jobs:
   prepare-server:
-    uses: YaroslavGmyrya/infra-repo/.github/workflows/prepare-server.yml@main
+    uses: YaroslavGmyrya/home-server/.github/workflows/ci.yml@main
     secrets: inherit
 
   build:
