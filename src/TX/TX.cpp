@@ -60,20 +60,37 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
       /*upsampling QAM symbols -> upscale samples (for pluto SDR)*/
       config.tx_samples = std::move(upscaling(samples));
     } else {
+      // auto start = std::chrono::high_resolution_clock::now();
 
       int bits_per_symbol = static_cast<int>(std::log2(config.mod_order));
       const int N = config.Nc * config.count_OFDM_symb * bits_per_symbol;
       config.bits = bits_gen(N);
 
+      // std::cout << "BITS COUNT: " << config.bits.size() << "\n";
+
       /*bits -> QAM symbols*/
       config.symbols = TX.modulator_.QAM(config.mod_order, config.bits);
+
+      // std::cout << "SYMBOLS COUNT: " << config.symbols.size() << "\n";
 
       /*QAM symbols -> IFFT -> OFDM signal*/
       std::vector<std::complex<double>> ofdm_signal =
           batch_ifft(config.symbols, config.Nc);
+
+      // std::cout << "IFFT COUNT: " << ofdm_signal.size() << "\n";
+
       ofdm_signal = add_CP(ofdm_signal, config);
 
+      // std::cout << "CP COUNT: " << ofdm_signal.size() << "\n";
+
       config.tx_samples = upscaling(ofdm_signal);
+
+      // std::cout << "SAMPLES COUNT: " << config.tx_samples.size() << "\n";
+
+      // auto end = std::chrono::high_resolution_clock::now();
+
+      // std::chrono::duration<double> elapsed = end - start;
+      // std::cout << "Время работы: " << elapsed.count() << " секунд\n";
     }
   }
 }

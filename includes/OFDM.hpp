@@ -8,7 +8,7 @@
 std::vector<std::vector<std::complex<double>>>
 batched(const std::vector<std::complex<double>> &data, const int size);
 std::vector<std::complex<double>>
-batch_ifft(const std::vector<std::complex<double>> &data, int batch_size);
+batch_ifft(std::vector<std::complex<double>> &data, int batch_size);
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
        const tx_cfg &tx_config);
@@ -33,7 +33,7 @@ std::vector<double>
 OFDM_corr_receiving(const std::vector<std::complex<double>> &rx,
                     std::vector<double> &cfo, int N, int Lcp);
 
-void CFO_correction(std::vector<std::complex<double>> &samples,
-                    const std::vector<int> &peaks,
-                    const std::vector<double> &cfo, const int Lcp,
-                    const int Nc);
+// void CFO_correction(std::vector<std::complex<double>> &samples,
+//                     const std::vector<int> &peaks,
+//                     const std::vector<double> &cfo, const int Lcp,
+//                     const int Nc);

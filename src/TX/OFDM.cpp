@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <complex>
 #include <fftw3.h>
+#include <iostream>
 #include <spdlog/spdlog.h>
 #include <vector>
 
@@ -30,44 +31,36 @@
 // }
 
 std::vector<std::complex<double>>
-batch_ifft(const std::vector<std::complex<double>> &data, int batch_size) {
+batch_ifft(std::vector<std::complex<double>> &data, int batch_size) {
   const int N = data.size();
-
   if (batch_size <= 0 || N % batch_size != 0)
     return {};
 
   const int howmany = N / batch_size;
+  // std::cout << "HowMany: " << howmany << "\n";
   const int n[] = {batch_size};
+  // std::cout << "N: " << N << "\n";
 
-  fftw_complex *in = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
-  fftw_complex *out = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
-
-  std::memcpy(in, data.data(), sizeof(fftw_complex) * N);
+  fftw_complex *in = reinterpret_cast<fftw_complex *>(data.data());
+  std::vector<std::complex<double>> out_vec(N);
+  fftw_complex *out = reinterpret_cast<fftw_complex *>(out_vec.data());
 
   fftw_plan plan =
       fftw_plan_many_dft(1, n, howmany, in, nullptr, 1, batch_size, out,
-                         nullptr, 1, batch_size, FFTW_BACKWARD, FFTW_ESTIMATE);
+                         nullptr, 1, batch_size, FFTW_BACKWARD, FFTW_MEASURE);
 
-  if (!plan) {
-    fftw_free(in);
-    fftw_free(out);
+  if (!plan)
     return {};
-  }
 
   fftw_execute(plan);
-
-  std::vector<std::complex<double>> result(N);
-
-  for (int i = 0; i < N; ++i) {
-    result[i] = {out[i][0], out[i][1]};
-    result[i] /= batch_size;
-  }
-
   fftw_destroy_plan(plan);
-  fftw_free(in);
-  fftw_free(out);
 
-  return result;
+  for (auto &c : out_vec)
+    c /= batch_size;
+
+  // std::cout << "SIZE: " << out_vec.size() << "\n";
+
+  return out_vec;
 }
 
 std::vector<std::complex<double>>
@@ -275,18 +268,21 @@ extract_OFDM_symbols(const std::vector<std::complex<double>> &ofdm_samples,
   return result;
 }
 
-void CFO_correction(std::vector<std::complex<double>> &samples,
-                    const std::vector<int> &peaks,
-                    const std::vector<double> &cfo, const int Lcp,
-                    const int Nc) {
-  int peak_idx;
-  for (int i = 0; i < peaks.size(); ++i) {
-    int peak_idx = peaks[i];
-    double eps = cfo[peak_idx];
+// void CFO_correction(std::vector<std::complex<double>> &samples,
+//                     const std::vector<int> &peaks,
+//                     const std::vector<double> &cfo, const int Lcp,
+//                     const int Nc)
+// {
+//   int peak_idx;
+//   for (int i = 0; i < peaks.size(); ++i)
+//   {
+//     int peak_idx = peaks[i];
+//     double eps = cfo[peak_idx];
 
-    for (int k = 0; k < Nc + Lcp; ++k) {
-      samples[peak_idx + k] *=
-          std::exp(std::complex<double>(0, -2 * M_PI * eps * k / Lcp));
-    }
-  }
-}
+//     for (int k = 0; k < Nc + Lcp; ++k)
+//     {
+//       samples[peak_idx + k] *=
+//           std::exp(std::complex<double>(0, -2 * M_PI * eps * k / Lcp));
+//     }
+//   }
+// }

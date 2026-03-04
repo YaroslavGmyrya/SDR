@@ -453,11 +453,6 @@ int main(int argc, char *argv[]) {
     SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
                               &flags, &timeNs, timeoutUs);
 
-    // считали буффер RX, записали его в rx_buffer
-    int sr =
-        SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
-                                  &flags, &timeNs, timeoutUs);
-
     last_time = timeNs;
 
     // Переменная для времени отправки сэмплов относительно текущего приема
