@@ -6,20 +6,24 @@
 #include "ImGUI_interface.h"
 #include "pluto_lib.hpp"
 
+enum cell_type { guard, data, pilot };
+
 struct tx_cfg {
-  bool run; // for stop work
-  int bitrate;
+  bool run;      // for stop work
   int mod_order; // 2-BPSK, 4-QPSK, 16-QAM16
   int sps;       // samples per symbol
   int IR_type;   // 0-Rectangle, 1-Raised-Cosine
   int OFDM;      // 0 - OFDM 0FF, 1 - OFDM ON
-  int Nc;        // subcarriers count
+  int FFT_size;  // subcarriers count
   int CP_size;   // Cyclic prefix size
-  int count_OFDM_symb;
-
+  int pilots_count;
+  int guard_size;
+  std::complex<double> pilot_value;
   std::vector<int16_t> bits;
   std::vector<std::complex<double>> symbols;
   std::vector<std::complex<int16_t>> tx_samples;
+  std::vector<cell_type> grid;
+  int symb_count;
 };
 
 struct rx_cfg {

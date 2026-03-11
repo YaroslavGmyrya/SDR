@@ -65,19 +65,24 @@ batch_ifft(std::vector<std::complex<double>> &data, int batch_size) {
 
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
-       const tx_cfg &tx_config) {
-  std::vector<std::complex<double>> result(
-      samples.size() + tx_config.count_OFDM_symb * tx_config.CP_size);
+       const tx_cfg &tx_config, const int ofdm_symb_count) {
+  std::vector<std::complex<double>> result;
+  result.reserve(samples.size() + ofdm_symb_count * tx_config.CP_size);
 
-  for (int i = 0; i < tx_config.count_OFDM_symb; ++i) {
-    auto dst = result.data() + i * (tx_config.CP_size + tx_config.Nc);
-    auto src = samples.data() + i * tx_config.Nc;
+  for (int i = 0; i < ofdm_symb_count; ++i) {
+    auto symb_begin = samples.begin() + i * tx_config.FFT_size;
+    auto symb_end = symb_begin + tx_config.FFT_size;
 
-    std::memcpy(dst, src + (tx_config.Nc - tx_config.CP_size),
-                tx_config.CP_size * sizeof(std::complex<double>));
+    auto cp_begin = symb_end - tx_config.CP_size;
 
-    std::memcpy(dst + tx_config.CP_size, src,
-                tx_config.Nc * sizeof(std::complex<double>));
+    result.insert(result.end(), cp_begin, symb_end);
+
+    result.insert(result.end(), symb_begin, symb_end);
+  }
+
+  if (result.size() != 1920) {
+    const int padding = 1920 - result.size();
+    result.insert(result.end(), padding, {0, 0});
   }
 
   return result;
@@ -137,10 +142,6 @@ std::vector<std::complex<double>> BPSK(const std::vector<int16_t> &bits) {
 //   return std::abs(unnorm / norm_coeff);
 // }
 
-#include <cmath>
-#include <complex>
-#include <vector>
-
 std::vector<double>
 OFDM_corr_receiving(const std::vector<std::complex<double>> &rx,
                     std::vector<double> &cfo, int N, int Lcp) {
@@ -199,7 +200,7 @@ batch_fft(const std::vector<std::complex<double>> &data, int batch_size) {
   const int N = data.size();
 
   if (batch_size <= 0 || N % batch_size != 0 || N == 0) {
-    printf("INVALID SIZE");
+    // printf("INVALID SIZE");
     return {{0, 0}};
   }
 
@@ -268,21 +269,88 @@ extract_OFDM_symbols(const std::vector<std::complex<double>> &ofdm_samples,
   return result;
 }
 
-// void CFO_correction(std::vector<std::complex<double>> &samples,
-//                     const std::vector<int> &peaks,
-//                     const std::vector<double> &cfo, const int Lcp,
-//                     const int Nc)
-// {
-//   int peak_idx;
-//   for (int i = 0; i < peaks.size(); ++i)
-//   {
-//     int peak_idx = peaks[i];
-//     double eps = cfo[peak_idx];
+std::vector<std::complex<double>> ofdm_sym_template(std::complex<double> pilot,
+                                                    const int FFT_size,
+                                                    const int pilots_count,
+                                                    const int gi_size) {
 
-//     for (int k = 0; k < Nc + Lcp; ++k)
-//     {
-//       samples[peak_idx + k] *=
-//           std::exp(std::complex<double>(0, -2 * M_PI * eps * k / Lcp));
-//     }
-//   }
-// }
+  std::vector<std::complex<double>> temp(FFT_size);
+
+  int payload_size = FFT_size - 2 * gi_size;
+
+  int step = payload_size / pilots_count;
+
+  for (int i = gi_size - 1; i < FFT_size - gi_size; i += step) {
+    temp[i] = pilot;
+  }
+
+  return temp;
+}
+
+std::vector<std::complex<double>>
+create_ofdm_symbols(const std::vector<std::complex<double>> &symbols,
+                    const int Nc, const int gi_size) {
+  std::vector<std::complex<double>> ofdm_symbols(symbols.size() + gi_size * 2);
+
+  for (int i = gi_size; i < symbols.size(); ++i) {
+    ofdm_symbols[i] = symbols[i - gi_size];
+  }
+}
+
+std::vector<cell_type> create_ofdm_grid(const int FFT_size,
+                                        const int pilots_count,
+                                        const int gi_size) {
+  // create grid and fill her by zeros
+  std::vector<cell_type> grid(FFT_size, data);
+
+  // fill left guard
+  for (int i = 0; i < gi_size; ++i) {
+    grid[i] = guard;
+  }
+
+  // fill right guard
+  for (int i = FFT_size - gi_size - 1; i < FFT_size; ++i) {
+    grid[i] = guard;
+  }
+
+  double pilot_step = double(FFT_size - 2 * gi_size - 1) / (pilots_count - 1);
+  int pilot_pos;
+
+  // fill pilots
+  for (int i = 0; i < pilots_count; ++i) {
+    pilot_pos = gi_size + std::lround(i * pilot_step);
+    grid[pilot_pos] = pilot;
+  }
+
+  return grid;
+}
+
+std::vector<std::complex<double>>
+create_ofdm_signal(const std::vector<std::complex<double>> &symbols,
+                   const std::vector<cell_type> &grid,
+                   const std::complex<double> pilot_value,
+                   const int buff_size) {
+  std::vector<std::complex<double>> signal;
+  signal.reserve(buff_size);
+
+  int k = 0;
+
+  while (k < symbols.size()) {
+    for (int j = 0; j < grid.size(); ++j) {
+
+      if (grid[j] == guard) {
+        signal.push_back({0, 0});
+      }
+
+      else if (grid[j] == pilot) {
+        signal.push_back(pilot_value);
+      }
+
+      else {
+        signal.push_back(symbols[k++]);
+      }
+    }
+  }
+
+  return signal;
+}

@@ -23,6 +23,22 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
   /*tx object*/
   transmitter TX;
 
+  int prev_pilots_count = config.pilots_count;
+  int prev_FFT_size = config.FFT_size;
+  int prev_guard_size = config.guard_size;
+
+  int ofdm_symb_size = config.FFT_size + config.CP_size;
+  int payload_size =
+      config.FFT_size - 2 * config.guard_size - config.pilots_count;
+  int bits_per_symbol = static_cast<int>(std::log2(config.mod_order));
+
+  config.symb_count = sdr_cfg.buff_size / ofdm_symb_size;
+
+  int N_bits = config.symb_count * payload_size * bits_per_symbol;
+
+  config.grid =
+      create_ofdm_grid(config.FFT_size, config.pilots_count, config.guard_size);
+
   while (1) {
 
     if (!config.OFDM) {
@@ -60,37 +76,64 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
       /*upsampling QAM symbols -> upscale samples (for pluto SDR)*/
       config.tx_samples = std::move(upscaling(samples));
     } else {
-      // auto start = std::chrono::high_resolution_clock::now();
 
-      int bits_per_symbol = static_cast<int>(std::log2(config.mod_order));
-      const int N = config.Nc * config.count_OFDM_symb * bits_per_symbol;
-      config.bits = bits_gen(N);
+      if (config.FFT_size != prev_FFT_size ||
+          config.pilots_count != prev_pilots_count ||
+          config.guard_size != prev_guard_size) {
+        if (config.guard_size < config.FFT_size / 3) {
 
-      // std::cout << "BITS COUNT: " << config.bits.size() << "\n";
+          prev_pilots_count = config.pilots_count;
+          prev_FFT_size = config.FFT_size;
+          prev_guard_size = config.guard_size;
+
+          ofdm_symb_size = config.FFT_size + config.CP_size;
+          payload_size =
+              config.FFT_size - 2 * config.guard_size - config.pilots_count;
+          bits_per_symbol = static_cast<int>(std::log2(config.mod_order));
+
+          config.symb_count = sdr_cfg.buff_size / ofdm_symb_size;
+
+          N_bits = config.symb_count * payload_size * bits_per_symbol;
+
+          config.grid = create_ofdm_grid(config.FFT_size, config.pilots_count,
+                                         config.guard_size);
+        }
+      }
+
+      // for (int i = 0; i < grid.size(); ++i)
+      // {
+      //   std::cout << grid[i] << " ";
+      // }
+
+      std::cout << "\n\n";
+
+      /*gen bits*/
+      config.bits = bits_gen(N_bits);
 
       /*bits -> QAM symbols*/
       config.symbols = TX.modulator_.QAM(config.mod_order, config.bits);
 
-      // std::cout << "SYMBOLS COUNT: " << config.symbols.size() << "\n";
+      /*create ofdm symbol*/
+
+      std::vector<std::complex<double>> ofdm_symbols = create_ofdm_signal(
+          config.symbols, config.grid, config.pilot_value, sdr_cfg.buff_size);
+
+      // for (int i = 0; i < ofdm_symbols.size(); ++i)
+      // {
+      //   std::cout << ofdm_symbols[i] << " ";
+      // }
+
+      // std::cout << "\n\n\n";
 
       /*QAM symbols -> IFFT -> OFDM signal*/
       std::vector<std::complex<double>> ofdm_signal =
-          batch_ifft(config.symbols, config.Nc);
+          batch_ifft(ofdm_symbols, config.FFT_size);
 
-      // std::cout << "IFFT COUNT: " << ofdm_signal.size() << "\n";
+      ofdm_signal = add_CP(ofdm_signal, config, config.symb_count);
 
-      ofdm_signal = add_CP(ofdm_signal, config);
-
-      // std::cout << "CP COUNT: " << ofdm_signal.size() << "\n";
+      std::cout << ofdm_signal.size() << " ";
 
       config.tx_samples = upscaling(ofdm_signal);
-
-      // std::cout << "SAMPLES COUNT: " << config.tx_samples.size() << "\n";
-
-      // auto end = std::chrono::high_resolution_clock::now();
-
-      // std::chrono::duration<double> elapsed = end - start;
-      // std::cout << "Время работы: " << elapsed.count() << " секунд\n";
     }
   }
 }

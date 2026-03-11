@@ -138,10 +138,13 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
             if (tx_config.OFDM) {
               ImGui::SeparatorText("OFDM");
-              ImGui::InputInt("Subcarriers count", &tx_config.Nc, 1, 128);
-              ImGui::InputInt("Cycle prefix size", &tx_config.CP_size, 1, 128);
-              ImGui::InputInt("Count of symbols", &tx_config.count_OFDM_symb, 1,
+              ImGui::InputInt("FFT size", &tx_config.FFT_size, 1, 128);
+              ImGui::InputInt("Cyclic prefix size", &tx_config.CP_size, 1, 128);
+              ImGui::InputInt("Count of pilots", &tx_config.pilots_count, 1,
                               128);
+              ImGui::SliderInt("Guard interval size (double side)",
+                               &tx_config.guard_size, 2,
+                               tx_config.FFT_size / 3);
             }
 
             ImGui::EndChild();
@@ -173,11 +176,39 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             if (ImPlot::BeginPlot("Samples", ImVec2(-1, plot_height))) {
               ImPlot::PlotLineG("I component", get_I<int16_t>,
                                 &tx_config.tx_samples,
-                                tx_config.tx_samples.size() / 2);
+                                tx_config.tx_samples.size());
               ImPlot::PlotLineG("Q component", get_Q<int16_t>,
                                 &tx_config.tx_samples,
-                                tx_config.tx_samples.size() / 2);
+                                tx_config.tx_samples.size());
               ImPlot::EndPlot();
+            }
+            if (ImGui::BeginTable("OFDM", tx_config.FFT_size,
+                                  ImGuiTableFlags_Borders)) {
+              for (int s = 0; s < tx_config.symb_count; s++) {
+                ImGui::TableNextRow();
+
+                for (int sc = 0; sc < tx_config.FFT_size; sc++) {
+                  ImGui::TableSetColumnIndex(sc);
+
+                  auto cell = tx_config.grid[s * tx_config.FFT_size + sc];
+
+                  if (cell == guard)
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(100, 100, 100, 120));
+
+                  else if (cell == pilot)
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(255, 200, 0, 120));
+
+                  else
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(0, 200, 0, 80));
+
+                  ImGui::Text(" ");
+                }
+              }
+
+              ImGui::EndTable();
             }
 
             ImGui::EndChild();

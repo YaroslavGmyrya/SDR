@@ -3,6 +3,7 @@
 */
 
 #include "fftw3.h"
+#include <chrono>
 #include <complex>
 #include <fstream>
 #include <iostream>
@@ -34,27 +35,35 @@ int_to_double(const std::vector<std::complex<int16_t>> &samples) {
   return result;
 }
 
-void CFO_correction(std::vector<std::complex<double>> &symbols,
-                    const std::vector<int> &peaks, const int CP_L, const int Nc,
-                    const int Fs) {
-  const double Ts = 1 / static_cast<double>(Fs);
-  std::complex<double> corr;
-  double cfo;
-  for (int i = 0; i < peaks.size(); ++i) {
-    corr = 0;
-    cfo = 0;
-    for (int j = 0; j < CP_L; ++j) {
-      corr += symbols[peaks[i] + j] * std::conj(symbols[peaks[i] + j + Nc]);
-    }
+// void CFO_correction(std::vector<std::complex<double>> &symbols,
+//                     const std::vector<int> &peaks,
+//                     int CP_L, int Nc, int Fs)
+// {
+//   const double Ts = 1 / static_cast<double>(Fs);
 
-    cfo = std::arg(corr) / (2 * M_PI * Nc * Ts);
-    int c = 0;
-    for (int k = peaks[i] + CP_L; k < peaks[i] + CP_L + Nc; ++k) {
-      symbols[k] *= std::exp(std::complex<double>(-2 * M_PI * cfo * Ts * c));
-      c++;
-    }
-  }
-}
+//   for (int i = 0; i < static_cast<int>(peaks.size()); ++i)
+//   {
+//     int start = peaks[i];
+
+//     if (start < 0 || start + Nc + CP_L > symbols.size())
+//       continue;
+
+//     std::complex<double> corr(0, 0);
+
+//     for (int j = 0; j < CP_L; ++j)
+//     {
+//       corr += symbols[start + j] * std::conj(symbols[start + j + Nc]);
+//     }
+
+//     double cfo = -std::arg(corr) / (2.0 * M_PI * Nc * Ts);
+
+//     for (int k = start + CP_L; k < start + CP_L + Nc; ++k)
+//     {
+//       double phi = -2.0 * M_PI * cfo * Ts * k;
+//       symbols[k] *= std::exp(std::complex<double>(0, phi));
+//     }
+//   }
+// }
 
 void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
@@ -153,33 +162,19 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
       rx_config.spectrum = fft(samples_d, sdr_config.rx_sample_rate);
 
       findPeaks::PeakConditions conditions;
-      conditions.set_height(0.9, 1.0);       // Minimum height of 2.0
+      conditions.set_height(0.935, 1.0);     // Minimum height of 2.0
       conditions.set_distance(rx_config.Nc); // At least 2 samples between
 
       std::vector<int> peaks =
           findPeaks::find_peaks(rx_config.corr_func, conditions);
 
-      CFO_correction(samples_d, peaks, rx_config.CP_size, rx_config.Nc,
-                     sdr_config.rx_sample_rate);
-
-      // rx_config.corr_func = OFDM_corr_receiving(samples_d, cfo, rx_config.Nc,
-      // rx_config.CP_size);
+      // CFO_correction(samples_d, peaks, rx_config.CP_size, rx_config.Nc,
+      //                sdr_config.rx_sample_rate);
 
       std::vector<std::complex<double>> rx_symbols = extract_OFDM_symbols(
           samples_d, peaks, rx_config.CP_size, rx_config.Nc);
 
-      // std::cout << rx_symbols.size() << " ";
-
       rx_config.raw_symbols = batch_fft(rx_symbols, rx_config.Nc);
-
-      // std::cout << rx_config.raw_symbols.size() << " ";
-
-      // std::vector<int16_t> rx_bits(rx_config.raw_symbols.size());
-
-      // for (int i = 0; i < rx_bits.size(); ++i)
-      // {
-      //   rx_bits[i] = std::real(rx_config.raw_symbols[i]) > 0 ? 0 : 1;
-      // }
     }
   }
 }
