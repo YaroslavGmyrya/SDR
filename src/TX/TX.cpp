@@ -105,7 +105,9 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
       //   std::cout << grid[i] << " ";
       // }
 
-      std::cout << "\n\n";
+      // std::cout << "\n\n";
+
+      auto start = std::chrono::high_resolution_clock::now();
 
       /*gen bits*/
       config.bits = bits_gen(N_bits);
@@ -117,6 +119,12 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
 
       std::vector<std::complex<double>> ofdm_symbols = create_ofdm_signal(
           config.symbols, config.grid, config.pilot_value, sdr_cfg.buff_size);
+
+      // std::cout << "\n\nOFDM SYMBOLS: ";
+      // for (int i = 0; i < ofdm_symbols.size(); ++i)
+      // {
+      //     std::cout << ofdm_symbols[i] << " ";
+      // }
 
       // for (int i = 0; i < ofdm_symbols.size(); ++i)
       // {
@@ -131,9 +139,25 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
 
       ofdm_signal = add_CP(ofdm_signal, config, config.symb_count);
 
-      std::cout << ofdm_signal.size() << " ";
+      // std::cout << "\n\nOFDM size: ";
+      // std::cout << ofdm_signal.size();
+
+      // std::cout << ofdm_signal.size() << " ";
+
+      // std::cout << "\n\nTX grid: ";
+      // for (int i = 0; i < config.grid.size(); ++i)
+      // {
+      //     std::cout << config.grid[i];
+      // }
 
       config.tx_samples = upscaling(ofdm_signal);
+
+      auto end = std::chrono::high_resolution_clock::now();
+
+      std::chrono::duration<double> diff = end - start;
+
+      // std::cout << "Время выполнения: " << diff.count() << " секунд" <<
+      // std::endl;
     }
   }
 }

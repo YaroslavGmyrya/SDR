@@ -92,7 +92,10 @@ int main(int argc, char *argv[]) {
   rx_config.sps = 10;
   rx_config.rx_samples.resize(sdr_config.buff_size);
   rx_config.OFDM = 1;
-  rx_config.Nc = 64;
+  rx_config.FFT_size = 64;
+  rx_config.pilots_count = 8;
+  rx_config.guard_size = 2;
+  rx_config.pilot_value = {1, 1};
   rx_config.CP_size = 16;
 
   std::thread gui_thread(run_gui, std::ref(tx_config), std::ref(rx_config),
@@ -201,9 +204,14 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    int st;
     // считали буффер RX, записали его в rx_buffer
-    SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
-                              &flags, &timeNs, timeoutUs);
+    st =
+        SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
+                                  &flags, &timeNs, timeoutUs);
+
+    if (st != 1920)
+      printf("TX SAMPLES COUNT: %d", st);
 
     last_time = timeNs;
 
@@ -212,9 +220,12 @@ int main(int argc, char *argv[]) {
 
     void *tx_buffs[] = {tx_config.tx_samples.data()};
 
-    int st = SoapySDRDevice_writeStream(
+    st = SoapySDRDevice_writeStream(
         sdr, txStream, (const void *const *)tx_buffs, sdr_config.buff_size,
         &flags, tx_time, timeoutUs);
+
+    if (st != 1920)
+      printf("TX SAMPLES COUNT: %d", st);
   }
   if (rx_thread.joinable())
     rx_thread.join();
