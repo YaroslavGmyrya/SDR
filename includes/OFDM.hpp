@@ -7,11 +7,11 @@
 
 std::vector<std::vector<std::complex<double>>>
 batched(const std::vector<std::complex<double>> &data, const int size);
-void batch_ifft(std::vector<std::complex<double>> &data,
-                std::vector<std::complex<double>> ifft_out, int batch_size);
+std::vector<std::complex<double>>
+batch_ifft(std::vector<std::complex<double>> &data, int batch_size);
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
-       const tx_cfg &tx_config);
+       const tx_cfg &tx_config, const int ofdm_symb_size);
 std::vector<std::complex<double>>
 extract_OFDM_symbols(const std::vector<std::complex<double>> &ofdm_samples,
                      const std::vector<int> &peaks, const int CP_size,
@@ -33,7 +33,36 @@ std::vector<double>
 OFDM_corr_receiving(const std::vector<std::complex<double>> &rx,
                     std::vector<double> &cfo, int N, int Lcp);
 
-void CFO_correction(std::vector<std::complex<double>> &samples,
-                    const std::vector<int> &peaks,
-                    const std::vector<double> &cfo, const int Lcp,
-                    const int Nc);
+std::vector<std::complex<double>>
+create_ofdm_signal(const std::vector<std::complex<double>> &symbols,
+                   const std::vector<cell_type> &grid,
+                   const std::complex<double> pilot_value, const int buff_size);
+std::vector<cell_type>
+create_ofdm_grid(const int FFT_size, const int pilots_count, const int gi_size);
+
+std::vector<std::complex<double>>
+extract_symbols(const std::vector<std::complex<double>> &ofdm_symbols,
+                const std::vector<cell_type> &grid);
+void channel_equalization(std::vector<std::complex<double>> &symbols,
+                          const std::vector<std::complex<double>> &estimation);
+
+std::vector<std::complex<double>>
+channel_estimation(std::vector<std::complex<double>> &signal,
+                   const std::vector<cell_type> &grid,
+                   std::complex<double> pilot_value, rx_cfg &rx_config);
+
+void linear_interpolation(std::vector<std::complex<double>> &H,
+                          const std::vector<int> &pos, int FFT_size);
+
+void linear_interpolation2(std::vector<double> &H, const std::vector<int> &pos,
+                           int FFT_size);
+std::vector<int> get_pilots_pos(const std::vector<cell_type> &grid);
+
+void CFO_estimation(std::vector<std::complex<double>> &signal,
+                    const std::vector<int> &peaks, const int CP_size,
+                    const int FFT_size);
+
+// void CFO_correction(std::vector<std::complex<double>> &samples,
+//                     const std::vector<int> &peaks,
+//                     const std::vector<double> &cfo, const int Lcp,
+//                     const int Nc);

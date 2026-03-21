@@ -6,20 +6,24 @@
 #include "ImGUI_interface.h"
 #include "pluto_lib.hpp"
 
+enum cell_type { guard, data, pilot };
+
 struct tx_cfg {
-  bool run; // for stop work
-  int bitrate;
+  bool run;      // for stop work
   int mod_order; // 2-BPSK, 4-QPSK, 16-QAM16
   int sps;       // samples per symbol
   int IR_type;   // 0-Rectangle, 1-Raised-Cosine
   int OFDM;      // 0 - OFDM 0FF, 1 - OFDM ON
-  int Nc;        // subcarriers count
+  int FFT_size;  // subcarriers count
   int CP_size;   // Cyclic prefix size
-  int count_OFDM_symb;
-
-  std::vector<uint8_t> bits;
+  int pilots_count;
+  int guard_size;
+  std::complex<double> pilot_value;
+  std::vector<int16_t> bits;
   std::vector<std::complex<double>> symbols;
   std::vector<std::complex<int16_t>> tx_samples;
+  std::vector<cell_type> grid;
+  int symb_count;
 };
 
 struct rx_cfg {
@@ -29,9 +33,13 @@ struct rx_cfg {
   int sps;       // samples per symbol
   int IR_type;   // 0-Rectangle, 1-Raised-Cosine
   int OFDM;      // 0 - OFDM 0FF, 1 - OFDM ON
-  int Nc;        // subcarriers count
+  int FFT_size;  // subcarriers count
   int CP_size;   // Cyclic prefix size
-  int count_OFDM_symb;
+  int pilots_count;
+  int guard_size;
+  int symb_count;
+  std::vector<cell_type> grid;
+  std::complex<double> pilot_value;
 
   // gardner params
   double gardner_BnTs;
@@ -55,6 +63,8 @@ struct rx_cfg {
   std::pair<std::vector<std::complex<double>>, std::vector<double>>
       post_fine_CFO_spectrum;
   std::vector<std::complex<double>> post_costas;
+  std::vector<std::complex<double>> channel_estimation;
+  std::vector<std::complex<double>> before_inter;
 };
 
 void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config);

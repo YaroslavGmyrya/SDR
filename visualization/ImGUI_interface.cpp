@@ -34,6 +34,11 @@ template <typename T> ImPlotPoint get_Q(int idx, void *user_data) {
   return ImPlotPoint(idx, (*vec)[idx].imag());
 }
 
+template <typename T> ImPlotPoint get_abs(int idx, void *user_data) {
+  auto *vec = static_cast<std::vector<std::complex<T>> *>(user_data);
+  return ImPlotPoint(idx, std::abs((*vec)[idx]));
+}
+
 template <typename T> ImPlotPoint get_points(int idx, void *data) {
   auto *vec = static_cast<std::vector<std::complex<T>> *>(data);
 
@@ -91,7 +96,7 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
   float left_width = 450.0f;
   bool running = true;
 
-  float mhz_rx = 800;
+  float mhz_rx = 700;
   float mhz_tx = 800;
   float samplerate_rx = 1;
   float samplerate_tx = 1;
@@ -142,10 +147,13 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
             if (tx_config.OFDM) {
               ImGui::SeparatorText("OFDM");
-              ImGui::InputInt("Subcarriers count", &tx_config.Nc, 1, 128);
-              ImGui::InputInt("Cycle prefix size", &tx_config.CP_size, 1, 128);
-              ImGui::InputInt("Count of symbols", &tx_config.count_OFDM_symb, 1,
+              ImGui::InputInt("FFT size", &tx_config.FFT_size, 1, 128);
+              ImGui::InputInt("Cyclic prefix size", &tx_config.CP_size, 1, 128);
+              ImGui::InputInt("Count of pilots", &tx_config.pilots_count, 1,
                               128);
+              ImGui::SliderInt("Guard interval size (double side)",
+                               &tx_config.guard_size, 2,
+                               tx_config.FFT_size / 3);
             }
 
             ImGui::EndChild();
@@ -174,11 +182,39 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             if (ImPlot::BeginPlot("Samples", ImVec2(-1, plot_height))) {
               ImPlot::PlotLineG("I component", get_I<int16_t>,
                                 &tx_config.tx_samples,
-                                tx_config.tx_samples.size() / 2);
+                                tx_config.tx_samples.size());
               ImPlot::PlotLineG("Q component", get_Q<int16_t>,
                                 &tx_config.tx_samples,
-                                tx_config.tx_samples.size() / 2);
+                                tx_config.tx_samples.size());
               ImPlot::EndPlot();
+            }
+            if (ImGui::BeginTable("OFDM", tx_config.FFT_size,
+                                  ImGuiTableFlags_Borders)) {
+              for (int s = 0; s < tx_config.symb_count; s++) {
+                ImGui::TableNextRow();
+
+                for (int sc = 0; sc < tx_config.FFT_size; sc++) {
+                  ImGui::TableSetColumnIndex(sc);
+
+                  auto cell = tx_config.grid[s * tx_config.FFT_size + sc];
+
+                  if (cell == guard)
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(100, 100, 100, 120));
+
+                  else if (cell == pilot)
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(255, 200, 0, 120));
+
+                  else
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
+                                           IM_COL32(0, 200, 0, 80));
+
+                  ImGui::Text(" ");
+                }
+              }
+
+              ImGui::EndTable();
             }
 
             ImGui::EndChild();
@@ -218,8 +254,13 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
             if (rx_config.OFDM) {
               ImGui::SeparatorText("OFDM");
-              ImGui::InputInt("Subcarriers count", &rx_config.Nc, 1, 128);
-              ImGui::InputInt("Cycle prefix size", &rx_config.CP_size, 1, 128);
+              ImGui::InputInt("FFT size", &rx_config.FFT_size, 1, 128);
+              ImGui::InputInt("Cyclic prefix size", &rx_config.CP_size, 1, 128);
+              ImGui::InputInt("Count of pilots", &rx_config.pilots_count, 1,
+                              128);
+              ImGui::SliderInt("Guard interval size (double side)",
+                               &rx_config.guard_size, 2,
+                               rx_config.FFT_size / 3);
             }
 
             ImGui::EndChild();
@@ -298,6 +339,26 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
+            if (ImPlot::BeginPlot("Channel estimation BEFORE Interpolation",
+                                  ImVec2(-1, plot_height))) {
+
+              ImPlot::PlotLineG("Raw symbols", get_abs<double>,
+                                &rx_config.before_inter,
+                                rx_config.before_inter.size());
+
+              ImPlot::EndPlot();
+            }
+
+            if (ImPlot::BeginPlot("Channel estimation POST Interpolation",
+                                  ImVec2(-1, plot_height))) {
+
+              ImPlot::PlotLineG("Raw symbols", get_abs<double>,
+                                &rx_config.channel_estimation,
+                                rx_config.channel_estimation.size());
+
+              ImPlot::EndPlot();
+            }
+
             // if (ImPlot::BeginPlot("Matched filter output",
             //                       ImVec2(-1, plot_height)))
             // {
@@ -311,7 +372,7 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
-            if (ImPlot::BeginPlot("Post Gardner I/Q constellation",
+            if (ImPlot::BeginPlot("I/Q constellation",
                                   ImVec2(-1, plot_height))) {
               ImPlot::PlotScatterG("Symbols", get_points<double>,
                                    &rx_config.raw_symbols,
@@ -330,15 +391,19 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
-            if (ImPlot::BeginPlot("Correlation function",
-                                  ImVec2(-1, plot_height))) {
-              ImPlot::SetupAxes("Time", "Amplitude");
-              ImPlot::PlotLineG("I component", get_value<double>,
-                                &rx_config.corr_func,
-                                rx_config.corr_func.size());
+            // if (ImPlot::BeginPlot("Correlation function",
+            //                       ImVec2(-1, plot_height)))
+            // {
+            //   ImPlot::SetupAxes("Time", "Amplitude");
+            //   ImPlot::PlotLineG("I component", get_I<double>,
+            //                     &rx_config.channel_estimation,
+            //                     rx_config.channel_estimation.size());
+            //   ImPlot::PlotLineG("Q component", get_Q<double>,
+            //                     &rx_config.channel_estimation,
+            //                     rx_config.channel_estimation.size());
 
-              ImPlot::EndPlot();
-            }
+            //   ImPlot::EndPlot();
+            // }
 
             ImGui::EndChild();
           }
