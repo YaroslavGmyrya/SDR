@@ -9,7 +9,6 @@ find_package(SoapySDR REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3 REQUIRED fftw3)
-find_package(libInterpolate REQUIRED)
 
 #install google test
 include(FetchContent)
