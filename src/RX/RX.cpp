@@ -3,12 +3,10 @@
 */
 
 #include "fftw3.h"
-#include "spline.h"
 #include <chrono>
 #include <complex>
 #include <fstream>
 #include <iostream>
-#include <libInterpolate/Interpolate.hpp>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 #include <string>

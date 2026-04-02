@@ -514,16 +514,13 @@ channel_estimation(std::vector<std::complex<double>> &signal,
                    std::complex<double> pilot_value, rx_cfg &rx_config) {
   std::vector<int> pilots_pos = get_pilots_pos(grid);
 
-  // for (int i = 0; i < pilots_pos.size(); ++i)
-  // {
-  //   std::cout << pilots_pos[i] << " ";
-  // }
-
   std::cout << "\n\n\n";
 
   const int FFT_size = grid.size();
 
   const int symbs_count = signal.size() / FFT_size;
+
+  std::cout << "\n\n" << symbs_count << "\n\n";
 
   std::vector<std::complex<double>> estimation(FFT_size * symbs_count);
   std::vector<double> A(FFT_size * symbs_count);
@@ -553,37 +550,13 @@ channel_estimation(std::vector<std::complex<double>> &signal,
 
   unwrap_phase(phi, FFT_size);
 
-  // std::cout << "\n\nBEFORE INTERPOLATION: ";
-  // for (int i = 0; i < 64; ++i)
-  // {
-  //   std::cout << estimation[i] << " ";
-  // }
-
   linear_interpolation2(A, pilots_pos, FFT_size);
 
   linear_interpolation2(phi, pilots_pos, FFT_size);
 
-  for (int s = 0; s < symbs_count; ++s) {
-    int base = s * FFT_size;
-
-    for (int k = 1; k < FFT_size - 1; ++k) {
-      A[base + k] = (A[base + k - 1] + A[base + k] + A[base + k + 1]) / 3.0;
-
-      phi[base + k] =
-          (phi[base + k - 1] + phi[base + k] + phi[base + k + 1]) / 3.0;
-    }
-  }
-
   for (int i = 0; i < A.size(); ++i) {
     estimation[i] = A[i] * std::exp(std::complex<double>(0.0, phi[i]));
   }
-
-  // std::cout << "\n\nAFTER INTERPOLATION: ";
-
-  // for (int i = 0; i < 64; ++i)
-  // {
-  //   std::cout << estimation[i] << " ";
-  // }
 
   return estimation;
 }
@@ -619,4 +592,47 @@ extract_symbols(const std::vector<std::complex<double>> &ofdm_symbols,
   }
 
   return clear_symbols;
+}
+
+std::vector<frame_cell> create_frame_grid(const bool pss, const bool symbols){
+
+  std::vector<frame_cell> frame_grid;
+
+  if(pss)
+    frame_grid.push_back(PSS);
+  
+  if(symbol)
+    frame_grid.push_back(symbol);
+
+  return frame_grid;
+}
+
+
+std::vector<std::complex<double>> create_frames(const std::vector<frame_cell>& frame_grid, const std::vector<std::complex<double>> pss, const std::vector<std::complex<double>> symbols, const int frames_count, const int pss_size, const int symb_per_frame, const int symb_size){
+
+  std::vector<std::complex<double>> frames;
+  frames.reserve(frames_count * ((symb_per_frame * symb_size)+ pss_size));
+
+  auto start_pss = pss.begin();
+  auto end_pss = pss.begin() + pss_size;
+
+  int i = 0;
+
+  for(int i = 0; i < frames_count; ++i){
+    for(int j = 0; j < frame_grid.size(); ++j){
+      
+      if(frame_grid[i] == PSS){
+        frames.insert(frames.end(), start_pss, end_pss);
+      }
+
+      if(frame_grid[i] == symbol){
+          auto start_symb = symbols.begin() + i * symb_size;
+          auto end_symb = symbols.begin() + (i+1) * symb_size;
+
+          frames.insert(frames.end(), start_symb, end_symb);
+      }
+    }
+  }
+
+  return frames;
 }

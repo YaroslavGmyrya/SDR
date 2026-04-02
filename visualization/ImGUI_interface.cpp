@@ -174,7 +174,7 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
               ImPlot::PlotScatterG("Symbols", get_points<double>,
                                    &tx_config.symbols,
-                                   tx_config.symbols.size());
+                                   tx_config.symbols.size() / 10);
 
               ImPlot::EndPlot();
             }
@@ -354,7 +354,7 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
               ImPlot::PlotLineG("Raw symbols", get_abs<double>,
                                 &rx_config.channel_estimation,
-                                rx_config.channel_estimation.size());
+                                rx_config.raw_symbols.size());
 
               ImPlot::EndPlot();
             }

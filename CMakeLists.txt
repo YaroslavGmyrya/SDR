@@ -87,7 +87,7 @@ add_executable(main ${MAIN_SOURCE})
 # add_executable(RX_test ${RX_TEST_SOURCE})
 
 # Линкуем библиотеки к исполняемому файлу
-target_link_libraries(main ${SoapySDR_LIBRARIES} imgui implot ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} spdlog::spdlog fftw3 libInterpolate::Interpolate)
+target_link_libraries(main ${SoapySDR_LIBRARIES} imgui implot ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} spdlog::spdlog fftw3)
 
 
 # target_link_libraries(RX_test GTest::gtest_main)

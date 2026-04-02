@@ -8,6 +8,8 @@
 
 enum cell_type { guard, data, pilot };
 
+enum frame_cell {PSS, symbol};
+
 struct tx_cfg {
   bool run;      // for stop work
   int mod_order; // 2-BPSK, 4-QPSK, 16-QAM16

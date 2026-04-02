@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <complex>
 #include <fftw3.h>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
 #include <vector>
 
-template <typename T> inline void fft_shift(std::vector<T> &fft_samples) {
+template <typename T>
+inline void fft_shift(std::vector<T> &fft_samples)
+{
   int N = fft_samples.size();
   int shift = N / 2;
 
@@ -14,7 +16,8 @@ template <typename T> inline void fft_shift(std::vector<T> &fft_samples) {
               fft_samples.end());
 }
 
-inline std::vector<double> fft_freq(const int N, const int Fs) {
+inline std::vector<double> fft_freq(const int N, const int Fs)
+{
   double step = static_cast<double>(Fs) / N;
   std::vector<double> freqs(N);
 
@@ -26,7 +29,8 @@ inline std::vector<double> fft_freq(const int N, const int Fs) {
 
 template <typename T>
 inline std::pair<std::vector<std::complex<double>>, std::vector<double>>
-fft(const std::vector<std::complex<T>> &samples, const int Fs) {
+fft(const std::vector<std::complex<T>> &samples, const int Fs)
+{
 
   const int N = samples.size();
 
@@ -35,7 +39,8 @@ fft(const std::vector<std::complex<T>> &samples, const int Fs) {
   fftw_complex *out = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
 
   /*copy*/
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < N; ++i)
+  {
     in[i][0] = samples[i].real();
     in[i][1] = samples[i].imag();
   }
@@ -57,6 +62,45 @@ fft(const std::vector<std::complex<T>> &samples, const int Fs) {
 
   /*compute freq*/
   result.second = fft_freq(N, Fs);
+
+  /*free memmory*/
+  fftw_destroy_plan(plan);
+  fftw_free(in);
+  fftw_free(out);
+
+  return result;
+}
+
+template <typename T>
+inline std::vector<std::complex<double>>
+ifft2(const std::vector<std::complex<T>> &samples)
+{
+
+  const int N = samples.size();
+
+  /*create fftw3 structs*/
+  fftw_complex *in = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
+  fftw_complex *out = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
+
+  /*copy*/
+  for (int i = 0; i < N; ++i)
+  {
+    in[i][0] = samples[i].real();
+    in[i][1] = samples[i].imag();
+  }
+
+  /*define fft parameters*/
+  fftw_plan plan = fftw_plan_dft_1d(N, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
+
+  /*execute FFT*/
+  fftw_execute(plan);
+
+  /*copy result*/
+  std::vector<std::complex<double>> result;
+  result.resize(N);
+
+  for (int i = 0; i < N; ++i)
+    result[i] = {out[i][0], out[i][1]};
 
   /*free memmory*/
   fftw_destroy_plan(plan);
