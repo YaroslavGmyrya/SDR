@@ -36,27 +36,33 @@
 #include "imgui.h"
 #include "implot.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
   int mode = std::atoi(argv[2]);
+
+  sdr_config_t sdr_config;
 
   double rx_carrier_freq = 800e6;
   double tx_carrier_freq = 800e6;
 
-  if (mode == 0) {
+  if (mode == 0)
+  {
     rx_carrier_freq = 800e6;
     tx_carrier_freq = 1000e6;
+    sdr_config.buff_size = 1920 * 2;
   }
 
-  if (mode == 1) {
+  if (mode == 1)
+  {
+    sdr_config.buff_size = 1920;
+
     rx_carrier_freq = 700e6;
     tx_carrier_freq = 800e6;
   }
 
   /*init SDR config*/
-  sdr_config_t sdr_config;
   sdr_config.usb_uri = argv[1];
-  sdr_config.buff_size = 1920;
   sdr_config.rx_carrier_freq = rx_carrier_freq;
   sdr_config.tx_carrier_freq = tx_carrier_freq;
   sdr_config.rx_sample_rate = 1e6;
@@ -109,17 +115,20 @@ int main(int argc, char *argv[]) {
   struct SoapySDRStream *rxStream = setup_stream(sdr, &sdr_config, 1);
   struct SoapySDRStream *txStream = setup_stream(sdr, &sdr_config, 0);
 
-  if (mode == 0) {
+  if (mode == 0)
+  {
     rx_thread =
         std::thread(RX_proccesing, std::ref(rx_config), std::ref(sdr_config));
   }
 
-  if (mode == 1) {
+  if (mode == 1)
+  {
     tx_thread =
         std::thread(TX_proccesing, std::ref(tx_config), std::ref(sdr_config));
   }
 
-  if (mode == 2) {
+  if (mode == 2)
+  {
     rx_thread =
         std::thread(RX_proccesing, std::ref(rx_config), std::ref(sdr_config));
 
@@ -147,59 +156,72 @@ int main(int argc, char *argv[]) {
   int flags;        // flags set by receive operation
   long long timeNs; // timestamp for receive buffer
 
-  while (1) {
-    if (sdr_config.rx_sample_rate != prev_rx_samplerate) {
+  while (1)
+  {
+    if (sdr_config.rx_sample_rate != prev_rx_samplerate)
+    {
       prev_rx_samplerate = sdr_config.rx_sample_rate;
 
       if (SoapySDRDevice_setSampleRate(sdr, SOAPY_SDR_RX, 0,
-                                       sdr_config.rx_sample_rate) != 0) {
+                                       sdr_config.rx_sample_rate) != 0)
+      {
         spdlog::error("setSampleRate rx fail: %s\n",
                       SoapySDRDevice_lastError());
       }
     }
 
-    if (sdr_config.tx_sample_rate != prev_tx_samplerate) {
+    if (sdr_config.tx_sample_rate != prev_tx_samplerate)
+    {
       prev_tx_samplerate = sdr_config.tx_sample_rate;
 
       if (SoapySDRDevice_setSampleRate(sdr, SOAPY_SDR_TX, 0,
-                                       sdr_config.tx_sample_rate) != 0) {
+                                       sdr_config.tx_sample_rate) != 0)
+      {
         spdlog::error("setSampleRate tx fail: %s\n",
                       SoapySDRDevice_lastError());
       }
     }
 
-    if (sdr_config.rx_carrier_freq != prev_rx_freq) {
+    if (sdr_config.rx_carrier_freq != prev_rx_freq)
+    {
 
       prev_rx_freq = sdr_config.rx_carrier_freq;
 
       if (SoapySDRDevice_setFrequency(sdr, SOAPY_SDR_RX, 0,
-                                      sdr_config.rx_carrier_freq, NULL) != 0) {
+                                      sdr_config.rx_carrier_freq, NULL) != 0)
+      {
         spdlog::error("setFrequency rx fail: %s\n", SoapySDRDevice_lastError());
       }
     }
 
-    if (sdr_config.tx_carrier_freq != prev_tx_freq) {
+    if (sdr_config.tx_carrier_freq != prev_tx_freq)
+    {
       prev_tx_freq = sdr_config.tx_carrier_freq;
       if (SoapySDRDevice_setFrequency(sdr, SOAPY_SDR_TX, 0,
-                                      sdr_config.tx_carrier_freq, NULL) != 0) {
+                                      sdr_config.tx_carrier_freq, NULL) != 0)
+      {
         spdlog::error("setFrequency tx fail: %s\n", SoapySDRDevice_lastError());
       }
     }
 
-    if (sdr_config.rx_gain != prev_rx_gain) {
+    if (sdr_config.rx_gain != prev_rx_gain)
+    {
       prev_rx_gain = sdr_config.rx_gain;
 
       if (SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, *sdr_config.channels,
-                                 sdr_config.rx_gain) != 0) {
+                                 sdr_config.rx_gain) != 0)
+      {
         spdlog::error("setGain rx fail: %s\n", SoapySDRDevice_lastError());
       }
     }
 
-    if (sdr_config.tx_gain != prev_tx_gain) {
+    if (sdr_config.tx_gain != prev_tx_gain)
+    {
       prev_tx_gain = sdr_config.tx_gain;
 
       if (SoapySDRDevice_setGain(sdr, SOAPY_SDR_RX, *sdr_config.channels,
-                                 sdr_config.tx_gain) != 0) {
+                                 sdr_config.tx_gain) != 0)
+      {
         spdlog::error("setGain rx fail: %s\n", SoapySDRDevice_lastError());
       }
     }
@@ -209,9 +231,6 @@ int main(int argc, char *argv[]) {
     st =
         SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
                                   &flags, &timeNs, timeoutUs);
-
-    if (st != 1920)
-      printf("TX SAMPLES COUNT: %d", st);
 
     last_time = timeNs;
 
@@ -223,9 +242,6 @@ int main(int argc, char *argv[]) {
     st = SoapySDRDevice_writeStream(
         sdr, txStream, (const void *const *)tx_buffs, sdr_config.buff_size,
         &flags, tx_time, timeoutUs);
-
-    if (st != 1920)
-      printf("TX SAMPLES COUNT: %d", st);
   }
   if (rx_thread.joinable())
     rx_thread.join();

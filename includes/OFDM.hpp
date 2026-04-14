@@ -11,19 +11,23 @@ batched(const std::vector<std::complex<double>> &data, const int size);
 void batch_ifft(std::vector<std::complex<double>> &data,
                 std::vector<std::complex<double>> &ifft_out, const int FFT_size);
 
-
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
        int FFT_size,
        int CP_size);
-       
-       
+
 std::vector<std::complex<double>>
-extract_OFDM_symbols(const std::vector<std::complex<double>> &ofdm_samples,
-                     const std::vector<int> &peaks, const int CP_size,
-                     const int Nc);
+delete_CP(const std::vector<std::complex<double>> &samples,
+          const std::vector<int> &peaks, const int CP_size,
+          const int FFT_size);
+
 std::vector<std::complex<double>>
-batch_fft(const std::vector<std::complex<double>> &data, int batch_size);
+extract_inner_symbols(const std::vector<std::complex<double>> &ofdm_symbols,
+                      const std::vector<cell_type> &grid);
+
+void PSS_CFO_CORRECTION(std::vector<std::complex<double>> &samples, const std::vector<int> &peaks, const std::vector<std::complex<double>> &ZC, const double Ts);
+
+std::vector<std::complex<double>> batch_fft(const std::vector<std::complex<double>> &data, int batch_size);
 std::vector<double>
 OFDM_corr_receive(const std::vector<std::complex<double>> &samples,
                   const int symb_size, const int CP_size);
@@ -49,6 +53,7 @@ create_ofdm_grid(const int FFT_size, const int pilots_count, const int gi_size);
 std::vector<std::complex<double>>
 extract_symbols(const std::vector<std::complex<double>> &ofdm_symbols,
                 const std::vector<cell_type> &grid);
+
 void channel_equalization(std::vector<std::complex<double>> &symbols,
                           const std::vector<std::complex<double>> &estimation);
 

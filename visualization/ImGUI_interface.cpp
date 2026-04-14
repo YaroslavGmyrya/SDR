@@ -19,27 +19,37 @@
 #include "imgui.h"
 #include "implot.h"
 
-template <typename T> ImPlotPoint get_value(int idx, void *user_data) {
+template <typename T>
+ImPlotPoint get_value(int idx, void *user_data)
+{
   auto *vec = static_cast<std::vector<T> *>(user_data);
   return ImPlotPoint(idx, (*vec)[idx]);
 }
 
-template <typename T> ImPlotPoint get_I(int idx, void *user_data) {
+template <typename T>
+ImPlotPoint get_I(int idx, void *user_data)
+{
   auto *vec = static_cast<std::vector<std::complex<T>> *>(user_data);
   return ImPlotPoint(idx, (*vec)[idx].real());
 }
 
-template <typename T> ImPlotPoint get_Q(int idx, void *user_data) {
+template <typename T>
+ImPlotPoint get_Q(int idx, void *user_data)
+{
   auto *vec = static_cast<std::vector<std::complex<T>> *>(user_data);
   return ImPlotPoint(idx, (*vec)[idx].imag());
 }
 
-template <typename T> ImPlotPoint get_abs(int idx, void *user_data) {
+template <typename T>
+ImPlotPoint get_abs(int idx, void *user_data)
+{
   auto *vec = static_cast<std::vector<std::complex<T>> *>(user_data);
   return ImPlotPoint(idx, std::abs((*vec)[idx]));
 }
 
-template <typename T> ImPlotPoint get_points(int idx, void *data) {
+template <typename T>
+ImPlotPoint get_points(int idx, void *data)
+{
   auto *vec = static_cast<std::vector<std::complex<T>> *>(data);
 
   const auto &s = (*vec)[idx];
@@ -47,7 +57,8 @@ template <typename T> ImPlotPoint get_points(int idx, void *data) {
   return ImPlotPoint(s.real(), s.imag());
 }
 
-ImPlotPoint get_phase_spec(int idx, void *data) {
+ImPlotPoint get_phase_spec(int idx, void *data)
+{
   auto *fft = static_cast<
       std::pair<std::vector<std::complex<double>>, std::vector<double>> *>(
       data);
@@ -61,7 +72,8 @@ ImPlotPoint get_phase_spec(int idx, void *data) {
   return ImPlotPoint(x, y);
 }
 
-ImPlotPoint get_amp_spec(int idx, void *data) {
+ImPlotPoint get_amp_spec(int idx, void *data)
+{
   auto *fft = static_cast<
       std::pair<std::vector<std::complex<double>>, std::vector<double>> *>(
       data);
@@ -75,7 +87,8 @@ ImPlotPoint get_amp_spec(int idx, void *data) {
   return ImPlotPoint(x, y);
 }
 
-void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
+void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config)
+{
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
   SDL_Window *window = SDL_CreateWindow(
@@ -105,11 +118,14 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
   SDL_GL_SetSwapInterval(1);
 
-  while (running) {
+  while (running)
+  {
     SDL_Event event;
-    while (SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event))
+    {
       ImGui_ImplSDL2_ProcessEvent(&event);
-      if (event.type == SDL_QUIT) {
+      if (event.type == SDL_QUIT)
+      {
         tx_config.run = false;
         rx_config.run = false;
         running = false;
@@ -121,10 +137,14 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_None);
 
-    if (ImGui::Begin("Simulator")) {
-      if (ImGui::BeginTabBar("MyTabBar")) {
-        if (ImGui::BeginTabItem("Transmitter")) {
-          if (ImGui::BeginChild("TX", ImVec2(left_width, 0), true)) {
+    if (ImGui::Begin("Simulator"))
+    {
+      if (ImGui::BeginTabBar("MyTabBar"))
+      {
+        if (ImGui::BeginTabItem("Transmitter"))
+        {
+          if (ImGui::BeginChild("TX", ImVec2(left_width, 0), true))
+          {
             ImGui::Text("Settings");
 
             ImGui::SeparatorText("Modulator");
@@ -145,7 +165,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
             ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
-            if (tx_config.OFDM) {
+            if (tx_config.OFDM)
+            {
               ImGui::SeparatorText("OFDM");
               ImGui::InputInt("FFT size", &tx_config.FFT_size, 1, 128);
               ImGui::InputInt("Cyclic prefix size", &tx_config.CP_size, 1, 128);
@@ -161,8 +182,10 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
           ImGui::SameLine();
 
-          if (ImGui::BeginChild("TX_Plots", ImVec2(0, 0), true)) {
-            if (ImPlot::BeginPlot("Bits", ImVec2(-1, plot_height))) {
+          if (ImGui::BeginChild("TX_Plots", ImVec2(0, 0), true))
+          {
+            if (ImPlot::BeginPlot("Bits", ImVec2(-1, plot_height)))
+            {
 
               ImPlot::PlotLineG("Bits", get_value<uint8_t>, &tx_config.bits,
                                 tx_config.bits.size());
@@ -170,7 +193,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             }
 
             if (ImPlot::BeginPlot("I/Q constellation",
-                                  ImVec2(-1, plot_height))) {
+                                  ImVec2(-1, plot_height)))
+            {
 
               ImPlot::PlotScatterG("Symbols", get_points<double>,
                                    &tx_config.symbols,
@@ -179,7 +203,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
               ImPlot::EndPlot();
             }
 
-            if (ImPlot::BeginPlot("Samples", ImVec2(-1, plot_height))) {
+            if (ImPlot::BeginPlot("Samples", ImVec2(-1, plot_height)))
+            {
               ImPlot::PlotLineG("I component", get_I<int16_t>,
                                 &tx_config.tx_samples,
                                 tx_config.tx_samples.size());
@@ -189,11 +214,14 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
               ImPlot::EndPlot();
             }
             if (ImGui::BeginTable("OFDM", tx_config.FFT_size,
-                                  ImGuiTableFlags_Borders)) {
-              for (int s = 0; s < tx_config.symb_count; s++) {
+                                  ImGuiTableFlags_Borders))
+            {
+              for (int s = 0; s < tx_config.symb_count; s++)
+              {
                 ImGui::TableNextRow();
 
-                for (int sc = 0; sc < tx_config.FFT_size; sc++) {
+                for (int sc = 0; sc < tx_config.FFT_size; sc++)
+                {
                   ImGui::TableSetColumnIndex(sc);
 
                   auto cell = tx_config.grid[s * tx_config.FFT_size + sc];
@@ -223,8 +251,10 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Receiver")) {
-          if (ImGui::BeginChild("RX", ImVec2(left_width, 0), true)) {
+        if (ImGui::BeginTabItem("Receiver"))
+        {
+          if (ImGui::BeginChild("RX", ImVec2(left_width, 0), true))
+          {
             ImGui::Text("Settings");
 
             ImGui::SeparatorText("Modulator");
@@ -252,7 +282,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             ImGui::RadioButton("OFDM", &rx_config.OFDM, 1);
             ImGui::RadioButton("Non-OFDM", &rx_config.OFDM, 0);
 
-            if (rx_config.OFDM) {
+            if (rx_config.OFDM)
+            {
               ImGui::SeparatorText("OFDM");
               ImGui::InputInt("FFT size", &rx_config.FFT_size, 1, 128);
               ImGui::InputInt("Cyclic prefix size", &rx_config.CP_size, 1, 128);
@@ -268,7 +299,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
           ImGui::SameLine();
 
-          if (ImGui::BeginChild("RX_Plots", ImVec2(0, 0), true)) {
+          if (ImGui::BeginChild("RX_Plots", ImVec2(0, 0), true))
+          {
 
             // if (ImPlot::BeginPlot("CFO spectrum", ImVec2(-1, plot_height)))
             // {
@@ -279,7 +311,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
-            if (ImPlot::BeginPlot("I/Q samples", ImVec2(-1, plot_height))) {
+            if (ImPlot::BeginPlot("I/Q samples", ImVec2(-1, plot_height)))
+            {
               ImPlot::SetupAxes("Time", "Amplitude");
               ImPlot::PlotLineG("I component", get_I<int16_t>,
                                 &rx_config.rx_samples,
@@ -359,15 +392,16 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
-            // if (ImPlot::BeginPlot("Channel estimation POST Interpolation",
-            //                       ImVec2(-1, plot_height))) {
+            if (ImPlot::BeginPlot("Channel estimation POST Interpolation",
+                                  ImVec2(-1, plot_height)))
+            {
 
-            //   ImPlot::PlotLineG("Raw symbols", get_abs<double>,
-            //                     &rx_config.channel_estimation,
-            //                     rx_config.raw_symbols.size());
+              ImPlot::PlotLineG("Raw symbols", get_abs<double>,
+                                &rx_config.channel_estimation,
+                                rx_config.raw_symbols.size());
 
-            //   ImPlot::EndPlot();
-            // }
+              ImPlot::EndPlot();
+            }
 
             // if (ImPlot::BeginPlot("Matched filter output",
             //                       ImVec2(-1, plot_height)))
@@ -382,14 +416,15 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
             //   ImPlot::EndPlot();
             // }
 
-            // if (ImPlot::BeginPlot("I/Q constellation",
-            //                       ImVec2(-1, plot_height))) {
-            //   ImPlot::PlotScatterG("Symbols", get_points<double>,
-            //                        &rx_config.raw_symbols,
-            //                        rx_config.raw_symbols.size());
+            if (ImPlot::BeginPlot("I/Q constellation",
+                                  ImVec2(-1, plot_height)))
+            {
+              ImPlot::PlotScatterG("Symbols", get_points<double>,
+                                   &rx_config.raw_symbols,
+                                   rx_config.raw_symbols.size());
 
-            //   ImPlot::EndPlot();
-            // }
+              ImPlot::EndPlot();
+            }
 
             // if (ImPlot::BeginPlot("Post Costas Loop I/Q constellation",
             //                       ImVec2(-1, plot_height)))
@@ -421,19 +456,23 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("SDR")) {
-          if (ImGui::BeginChild("SDR_Settings", ImVec2(left_width, 0), true)) {
+        if (ImGui::BeginTabItem("SDR"))
+        {
+          if (ImGui::BeginChild("SDR_Settings", ImVec2(left_width, 0), true))
+          {
             ImGui::Text("Settings");
 
             ImGui::SeparatorText("Frequency");
 
             if (ImGui::SliderFloat("Rx carrier, MHz", &mhz_rx, 1, 20000,
-                                   "%.3f")) {
+                                   "%.3f"))
+            {
               sdr_config.rx_carrier_freq = mhz_rx * 1e6;
             }
 
             if (ImGui::SliderFloat("Tx carrier, MHz", &mhz_tx, 1, 20000,
-                                   "%.3f")) {
+                                   "%.3f"))
+            {
               sdr_config.tx_carrier_freq = mhz_tx * 1e6;
             }
 
@@ -446,12 +485,14 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
             ImGui::SeparatorText("Sample rate");
             if (ImGui::SliderFloat("Rx sample rate, Msamples", &samplerate_rx,
-                                   0, 2)) {
+                                   0, 2))
+            {
               sdr_config.rx_sample_rate = samplerate_rx * 1e6;
             }
 
             if (ImGui::SliderFloat("Tx sample rate, Msamples", &samplerate_tx,
-                                   0, 2)) {
+                                   0, 2))
+            {
               sdr_config.rx_sample_rate = samplerate_rx * 1e6;
             }
 
@@ -460,7 +501,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
           ImGui::SameLine();
 
-          if (ImGui::BeginChild("SDR_Plots", ImVec2(0, 0), true)) {
+          if (ImGui::BeginChild("SDR_Plots", ImVec2(0, 0), true))
+          {
             ImGui::EndChild();
           }
 
