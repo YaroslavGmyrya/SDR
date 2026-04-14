@@ -745,15 +745,21 @@ std::vector<double> ZC_corr(const std::vector<std::complex<double>> &samples,
 {
   std::vector<double> corr_func;
 
+  corr_func.reserve(samples.size() - ZC.size());
+
   double B = 0;
+
+  std::complex<double> R = 0;
+  double A = 0;
+  double coeff = std::sqrt(A * B);
 
   for (int i = 0; i < ZC.size(); ++i)
     B += std::norm(ZC[i]);
 
   for (int k = 0; k <= samples.size() - ZC.size(); ++k)
   {
-    std::complex<double> R = 0;
-    double A = 0;
+    R = 0;
+    A = 0;
 
     for (int i = 0; i < ZC.size(); ++i)
     {
@@ -761,7 +767,7 @@ std::vector<double> ZC_corr(const std::vector<std::complex<double>> &samples,
       A += std::norm(samples[k + i]);
     }
 
-    double coeff = std::sqrt(A * B);
+    coeff = std::sqrt(A * B);
     corr_func.push_back(coeff != 0.0 ? std::abs(R) / coeff : 0);
   }
 

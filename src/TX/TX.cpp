@@ -62,6 +62,7 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
       config.tx_samples = std::move(upscaling(samples));
     } else {
 
+        auto start = std::chrono::steady_clock::now();
 
         /*=========================================== gen bits ========================================*/
         int ofdm_symb_size = config.FFT_size + config.CP_size;
@@ -97,6 +98,11 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg) {
 
         /*=========================================== Upscaling for SDR ========================================*/
         config.tx_samples = upscaling(ofdm_signal);
+
+        auto end = std::chrono::steady_clock::now();
+
+         auto diff = end - start;
+        std::cout << std::chrono::duration<double, std::milli>(diff).count() << " мс" << std::endl;
 
         }
   }

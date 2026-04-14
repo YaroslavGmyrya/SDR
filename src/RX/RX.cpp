@@ -176,7 +176,9 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
     } else {
 
 
+
       std::vector<std::complex<double>> samples_d = int_to_double(rx_config.rx_samples);
+
 
 
 
@@ -186,12 +188,15 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
       std::vector<std::complex<double>> zc = ZC_gen(25, rx_config.FFT_size);
       
       /*get correlation function on PSS*/
+
       rx_config.zc_corr = ZC_corr(samples_d, zc);
+
 
       /*find correlation peaks*/
       findPeaks::PeakConditions conditions;
       conditions.set_height(0.9); // min peak value (filter)
       std::vector<int> zc_peaks = findPeaks::find_peaks(rx_config.zc_corr, conditions);
+
 
       if (zc_peaks.size() != 4)
         continue;
@@ -212,7 +217,17 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
     /*===================================================== SYM SYNC ==========================================================================*/
 
     /*Get correlation function on CP*/
+    auto start = std::chrono::steady_clock::now();
+
     rx_config.CP_corr = OFDM_corr_receiving(cut_samples, rx_config.FFT_size, rx_config.CP_size);
+    
+    auto end = std::chrono::steady_clock::now();
+
+    auto diff = end - start;
+
+    std::cout << std::chrono::duration<double, std::milli>(diff).count() << " мс" << std::endl;
+
+
 
     rx_config.CP_corr.insert(rx_config.CP_corr.begin(), 1, 0);
     rx_config.CP_corr.insert(rx_config.CP_corr.end(), 1, 0);
@@ -222,7 +237,9 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
     conditions.set_height(0.9);                                // min correlation value
     conditions.set_distance(rx_config.FFT_size + rx_config.CP_size); // min distance bw peaks (ofdm symbol size)
     std::vector<int> CP_peaks = findPeaks::find_peaks(rx_config.CP_corr, conditions);
-    
+  
+
+
 
     if (CP_peaks.size() == 0) {
       continue;
