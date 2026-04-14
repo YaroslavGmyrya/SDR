@@ -7,11 +7,17 @@
 
 std::vector<std::vector<std::complex<double>>>
 batched(const std::vector<std::complex<double>> &data, const int size);
-std::vector<std::complex<double>>
-batch_ifft(std::vector<std::complex<double>> &data, int batch_size);
+
+void batch_ifft(std::vector<std::complex<double>> &data,
+                std::vector<std::complex<double>> &ifft_out, const int FFT_size);
+
+
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
-       const tx_cfg &tx_config, const int ofdm_symb_size);
+       int FFT_size,
+       int CP_size);
+       
+       
 std::vector<std::complex<double>>
 extract_OFDM_symbols(const std::vector<std::complex<double>> &ofdm_samples,
                      const std::vector<int> &peaks, const int CP_size,
@@ -30,8 +36,8 @@ double norm_corr(const std::vector<std::complex<int16_t>> &symbols,
                  const std::vector<std::complex<int16_t>> &sync_seq_symb);
 
 std::vector<double>
-OFDM_corr_receiving(const std::vector<std::complex<double>> &rx,
-                    std::vector<double> &cfo, int N, int Lcp);
+OFDM_corr_receiving(const std::vector<std::complex<double>> &samples,
+                    const int FFT_size, const int CP_size);
 
 std::vector<std::complex<double>>
 create_ofdm_signal(const std::vector<std::complex<double>> &symbols,
@@ -66,3 +72,10 @@ void CFO_estimation(std::vector<std::complex<double>> &signal,
 //                     const std::vector<int> &peaks,
 //                     const std::vector<double> &cfo, const int Lcp,
 //                     const int Nc);
+
+std::vector<std::complex<double>> ZC_gen(const int root, const int FFT_size);
+
+std::vector<std::complex<double>> add_ZC(const std::vector<std::complex<double>> &ofdm_samples, const std::vector<std::complex<double>> &ZC);
+
+std::vector<double> ZC_corr(const std::vector<std::complex<double>> &samples,
+                            const std::vector<std::complex<double>> &ZC);

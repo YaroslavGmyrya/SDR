@@ -67,6 +67,10 @@ struct rx_cfg {
   std::vector<std::complex<double>> post_costas;
   std::vector<std::complex<double>> channel_estimation;
   std::vector<std::complex<double>> before_inter;
+  std::vector<double> zc_corr;
+    std::vector<double> CP_corr;
+
+
 };
 
 void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config);

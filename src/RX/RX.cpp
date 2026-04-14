@@ -92,22 +92,6 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
 
   receiver RX;
 
-  int prev_pilots_count = rx_config.pilots_count;
-  int prev_FFT_size = rx_config.FFT_size;
-  int prev_guard_size = rx_config.guard_size;
-
-  int ofdm_symb_size = rx_config.FFT_size + rx_config.CP_size;
-  int payload_size =
-      rx_config.FFT_size - 2 * rx_config.guard_size - rx_config.pilots_count;
-  int bits_per_symbol = static_cast<int>(std::log2(rx_config.mod_order));
-
-  rx_config.symb_count = sdr_config.buff_size / ofdm_symb_size;
-
-  int N_bits = rx_config.symb_count * payload_size * bits_per_symbol;
-
-  rx_config.grid = create_ofdm_grid(rx_config.FFT_size, rx_config.pilots_count,
-                                    rx_config.guard_size);
-
   while (1) {
 
     if (!rx_config.OFDM) {
@@ -191,169 +175,162 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config) {
       //     RX.demodulator_.QAM_demodulator(true_symbols, rx_config.mod_order);
     } else {
 
-      // file.write(reinterpret_cast<const char *>(rx_config.rx_samples.data()),
-      // rx_config.rx_samples.size() * sizeof(std::complex<int16_t>));
 
-      auto start = std::chrono::high_resolution_clock::now();
+      std::vector<std::complex<double>> samples_d = int_to_double(rx_config.rx_samples);
 
-      if (rx_config.FFT_size != prev_FFT_size ||
-          rx_config.pilots_count != prev_pilots_count ||
-          rx_config.guard_size != prev_guard_size) {
-        // rx_config.grid = create_ofdm_grid(rx_config.FFT_size,
-        // rx_config.pilots_count,
-        //                                   rx_config.guard_size);
-        if (rx_config.guard_size < rx_config.FFT_size / 3) {
 
-          prev_pilots_count = rx_config.pilots_count;
-          prev_FFT_size = rx_config.FFT_size;
-          prev_guard_size = rx_config.guard_size;
 
-          ofdm_symb_size = rx_config.FFT_size + rx_config.CP_size;
-          payload_size = rx_config.FFT_size - 2 * rx_config.guard_size -
-                         rx_config.pilots_count;
-          bits_per_symbol = static_cast<int>(std::log2(rx_config.mod_order));
+      /*===================================================== FRAME SYNC ==========================================================================*/
 
-          rx_config.symb_count = sdr_config.buff_size / ofdm_symb_size;
+      /*gen ZC*/
+      std::vector<std::complex<double>> zc = ZC_gen(25, rx_config.FFT_size);
+      
+      /*get correlation function on PSS*/
+      rx_config.zc_corr = ZC_corr(samples_d, zc);
 
-          N_bits = rx_config.symb_count * payload_size * bits_per_symbol;
-
-          rx_config.grid = create_ofdm_grid(
-              rx_config.FFT_size, rx_config.pilots_count, rx_config.guard_size);
-        }
-      }
-
-      std::vector<std::complex<double>> samples_d =
-          int_to_double(rx_config.rx_samples);
-
-      std::vector<double> cfo;
-
-      rx_config.corr_func = OFDM_corr_receiving(
-          samples_d, cfo, rx_config.FFT_size, rx_config.CP_size);
-
-      rx_config.spectrum = fft(samples_d, sdr_config.rx_sample_rate);
-
+      /*find correlation peaks*/
       findPeaks::PeakConditions conditions;
-      conditions.set_height(0.9); // Minimum height of 2.0
-      conditions.set_prominence(0.7);
-      conditions.set_distance(rx_config.FFT_size +
-                              rx_config.CP_size); // At least 2 samples between
+      conditions.set_height(0.9); // min peak value (filter)
+      std::vector<int> zc_peaks = findPeaks::find_peaks(rx_config.zc_corr, conditions);
 
-      std::vector<int> peaks =
-          findPeaks::find_peaks(rx_config.corr_func, conditions);
-
-      // std::cout << "\n\n";
-      // for (int i = 1; i < peaks.size(); ++i)
-      // {
-      //   std::cout << peaks[i] - peaks[i - 1] << " ";
-      // }
-
-      if (peaks.size() == 0) {
+      if (zc_peaks.size() != 4)
         continue;
+
+      /*cut signal (extract useful signal)*/
+      const int start_idx = zc_peaks[1] + rx_config.FFT_size;
+      const int end_idx = zc_peaks[2] - rx_config.CP_size;
+      const int range = end_idx - start_idx;
+
+      std::vector<std::complex<double>> cut_samples(range);
+
+      for (int i = start_idx; i < end_idx; ++i)
+      {
+        cut_samples[i-start_idx] = samples_d[i];
       }
 
-      CFO_estimation(samples_d, peaks, rx_config.CP_size, rx_config.FFT_size);
 
-      std::vector<std::complex<double>> rx_symbols = extract_OFDM_symbols(
-          samples_d, peaks, rx_config.CP_size, rx_config.FFT_size);
+    /*===================================================== SYM SYNC ==========================================================================*/
 
-      // std::cout << "\n\nRX grid: ";
-      // for (int i = 0; i < rx_config.grid.size(); ++i)
-      // {
-      //   std::cout << rx_config.grid[i];
-      // }
+    /*Get correlation function on CP*/
+    rx_config.CP_corr = OFDM_corr_receiving(cut_samples, rx_config.FFT_size, rx_config.CP_size);
 
-      rx_symbols = batch_fft(rx_symbols, rx_config.FFT_size);
+    rx_config.CP_corr.insert(rx_config.CP_corr.begin(), 1, 0);
+    rx_config.CP_corr.insert(rx_config.CP_corr.end(), 1, 0);
 
-      // normalized(rx_symbols);
 
-      // std::cout << "\n\nSymbols: ";
-      // for (int i = 0; i < rx_symbols.size(); ++i)
-      // {
-      //   std::cout << rx_symbols[i] << " ";
-      // }
+    /*find peaks*/
+    conditions.set_height(0.9);                                // min correlation value
+    conditions.set_distance(rx_config.FFT_size + rx_config.CP_size); // min distance bw peaks (ofdm symbol size)
+    std::vector<int> CP_peaks = findPeaks::find_peaks(rx_config.CP_corr, conditions);
+    
 
-      rx_config.channel_estimation = channel_estimation(
-          rx_symbols, rx_config.grid, rx_config.pilot_value, rx_config);
+    if (CP_peaks.size() == 0) {
+      continue;
+    }
 
-      // std::cout << "\n\n before interp: ";
-      // for (int i = 0; i < rx_config.before_inter.size(); ++i)
-      // {
-      //   std::cout << rx_config.before_inter[i] << " ";
-      // }
+    // CFO_estimation(samples_d, peaks, rx_config.CP_size, rx_config.FFT_size);
 
-      // std::vector<double> x(rx_config.before_inter.size());
-      // std::vector<double> y_r(rx_config.before_inter.size());
-      // std::vector<double> y_i(rx_config.before_inter.size());
+    // std::vector<std::complex<double>> rx_symbols = extract_OFDM_symbols(
+    //     samples_d, peaks, rx_config.CP_size, rx_config.FFT_size);
 
-      // for (int i = 0; i < x.size(); ++i)
-      // {
-      //   x[i] = i + 1;
-      // }
+    // std::cout << "\n\nRX grid: ";
+    // for (int i = 0; i < rx_config.grid.size(); ++i)
+    // {
+    //   std::cout << rx_config.grid[i];
+    // }
 
-      // for (int i = 0; i < rx_config.before_inter.size(); ++i)
-      // {
+    // rx_symbols = batch_fft(rx_symbols, rx_config.FFT_size);
 
-      //   if (std::real(rx_config.before_inter[i]) != 0 &&
-      //   std::imag(rx_config.before_inter[i]) != 0)
-      //   {
+    // normalized(rx_symbols);
 
-      //     y_r[i] = std::real(rx_config.before_inter[i]);
-      //     y_i[i] = std::imag(rx_config.before_inter[i]);
-      //   }
-      // }
+    // std::cout << "\n\nSymbols: ";
+    // for (int i = 0; i < rx_symbols.size(); ++i)
+    // {
+    //   std::cout << rx_symbols[i] << " ";
+    // }
 
-      // tk::spline s_re, s_im;
+    // rx_config.channel_estimation = channel_estimation(
+    //     rx_symbols, rx_config.grid, rx_config.pilot_value, rx_config);
 
-      // s_re.set_points(x, y_r);
-      // s_im.set_points(x, y_i);
+    // std::cout << "\n\n before interp: ";
+    // for (int i = 0; i < rx_config.before_inter.size(); ++i)
+    // {
+    //   std::cout << rx_config.before_inter[i] << " ";
+    // }
 
-      // // std::vector<int> pilots_pos = get_pilots_pos(rx_config.grid);
+    // std::vector<double> x(rx_config.before_inter.size());
+    // std::vector<double> y_r(rx_config.before_inter.size());
+    // std::vector<double> y_i(rx_config.before_inter.size());
 
-      // // linear_interpolation2(y_r, pilots_pos, rx_config.FFT_size);
-      // // linear_interpolation2(y_i, pilots_pos, rx_config.FFT_size);
+    // for (int i = 0; i < x.size(); ++i)
+    // {
+    //   x[i] = i + 1;
+    // }
 
-      // rx_config.channel_estimation.resize(y_r.size());
+    // for (int i = 0; i < rx_config.before_inter.size(); ++i)
+    // {
 
-      // for (int i = 0; i < y_r.size(); ++i)
-      // {
-      //   rx_config.channel_estimation[i] =
-      //       std::complex<double>(s_re(i), s_im(i));
-      // }
+    //   if (std::real(rx_config.before_inter[i]) != 0 &&
+    //   std::imag(rx_config.before_inter[i]) != 0)
+    //   {
 
-      channel_equalization(rx_symbols, rx_config.channel_estimation);
+    //     y_r[i] = std::real(rx_config.before_inter[i]);
+    //     y_i[i] = std::imag(rx_config.before_inter[i]);
+    //   }
+    // }
 
-      // std::cout << "\n\nSymbols1: ";
-      // for (int i = 0; i < rx_symbols.size(); ++i)
-      // {
-      //   if (std::real(rx_symbols[i]) > 2 || std::real(rx_symbols[i]) > 2)
+    // tk::spline s_re, s_im;
 
-      //     std::cout << rx_symbols[i] << " ";
-      // }
+    // s_re.set_points(x, y_r);
+    // s_im.set_points(x, y_i);
 
-      rx_config.raw_symbols = extract_symbols(rx_symbols, rx_config.grid);
+    // // std::vector<int> pilots_pos = get_pilots_pos(rx_config.grid);
 
-      // std::cout << "\n\n"
-      //           << rx_config.raw_symbols.size();
+    // // linear_interpolation2(y_r, pilots_pos, rx_config.FFT_size);
+    // // linear_interpolation2(y_i, pilots_pos, rx_config.FFT_size);
 
-      // auto end = std::chrono::high_resolution_clock::now();
+    // rx_config.channel_estimation.resize(y_r.size());
 
-      // std::chrono::duration<double> diff = end - start;
+    // for (int i = 0; i < y_r.size(); ++i)
+    // {
+    //   rx_config.channel_estimation[i] =
+    //       std::complex<double>(s_re(i), s_im(i));
+    // }
 
-      // std::cout << "Время выполнения: " << diff.count() << " секунд" <<
-      // std::endl;
+    // channel_equalization(rx_symbols, rx_config.channel_estimation);
 
-      // std::cout << "\n\nSymbols2: ";
-      // for (int i = 0; i < rx_symbols.size(); ++i)
-      // {
-      //   if (std::real(rx_symbols[i]) > 2 || std::real(rx_symbols[i]) > 2)
-      //     std::cout << rx_symbols[i] << " ";
-      // }
+    // std::cout << "\n\nSymbols1: ";
+    // for (int i = 0; i < rx_symbols.size(); ++i)
+    // {
+    //   if (std::real(rx_symbols[i]) > 2 || std::real(rx_symbols[i]) > 2)
 
-      // std::cout << "\n\nSymbols: ";
-      // for (int i = 0; i < rx_config.raw_symbols.size(); ++i)
-      // {
-      //   std::cout << rx_config.raw_symbols[i] << " ";
-      // }
+    //     std::cout << rx_symbols[i] << " ";
+    // }
+
+    // rx_config.raw_symbols = extract_symbols(rx_symbols, rx_config.grid);
+
+    // std::cout << "\n\n"
+    //           << rx_config.raw_symbols.size();
+
+    // auto end = std::chrono::high_resolution_clock::now();
+
+    // std::chrono::duration<double> diff = end - start;
+
+    // std::cout << "Время выполнения: " << diff.count() << " секунд" <<
+    // std::endl;
+
+    // std::cout << "\n\nSymbols2: ";
+    // for (int i = 0; i < rx_symbols.size(); ++i)
+    // {
+    //   if (std::real(rx_symbols[i]) > 2 || std::real(rx_symbols[i]) > 2)
+    //     std::cout << rx_symbols[i] << " ";
+    // }
+
+    // std::cout << "\n\nSymbols: ";
+    // for (int i = 0; i < rx_config.raw_symbols.size(); ++i)
+    // {
+    //   std::cout << rx_config.raw_symbols[i] << " ";
+    // }
     }
   }
 }

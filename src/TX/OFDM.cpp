@@ -31,61 +31,84 @@
 //   return batches;
 // }
 
-std::vector<std::complex<double>>
-batch_ifft(std::vector<std::complex<double>> &data, int batch_size) {
-  const int N = data.size();
-  if (batch_size <= 0 || N % batch_size != 0)
-    return {};
+void batch_ifft(std::vector<std::complex<double>> &data,
+                std::vector<std::complex<double>> &ifft_out, const int FFT_size)
+{
 
-  const int howmany = N / batch_size;
-  // std::cout << "HowMany: " << howmany << "\n";
-  const int n[] = {batch_size};
-  // std::cout << "N: " << N << "\n";
+  /*check errors*/
+  if (data.size() == 0)
+  {
+    spdlog::error("[OFDM.cpp:batch_ifft]: The data size is zero!");
+    return;
+  }
 
+  if (FFT_size <= 0)
+  {
+    spdlog::error("[OFDM.cpp:batch_ifft]: The FFT_size size is invalid!");
+    return;
+  }
+
+  if (data.size() % FFT_size != 0)
+  {
+    spdlog::error("[OFDM.cpp:batch_ifft]: Fractional number of OFDM symbols!");
+    return;
+  }
+
+  /*count of OFDM symbols*/
+  const int howmany = data.size() / FFT_size;
+
+  /*OFDM symbol size*/
+  const int n[] = {FFT_size};
+
+  ifft_out.clear();
+  ifft_out.resize(FFT_size * howmany);
+
+  /*create FFTW3 complex number (сompatibility with std::complex)*/
   fftw_complex *in = reinterpret_cast<fftw_complex *>(data.data());
-  std::vector<std::complex<double>> out_vec(N);
-  fftw_complex *out = reinterpret_cast<fftw_complex *>(out_vec.data());
+  fftw_complex *out = reinterpret_cast<fftw_complex *>(ifft_out.data());
 
+  /*plan is set of settings for FFT
+    1 - rank (1D, 2D ...),
+    n - size of batch (FFT_size),
+    in - fftw_complex array with OFDM in frequency domain,
+    FFT_size - space b/w batches,
+    out - output array with IFFT result,
+    FFTW_BACKWARD - flag for IFFT (FFT have flag FFTW_FORWARD)
+  */
   fftw_plan plan =
-      fftw_plan_many_dft(1, n, howmany, in, nullptr, 1, batch_size, out,
-                         nullptr, 1, batch_size, FFTW_BACKWARD, FFTW_MEASURE);
+      fftw_plan_many_dft(1, n, howmany, in, nullptr, 1, FFT_size, out, nullptr,
+                         1, FFT_size, FFTW_BACKWARD, FFTW_ESTIMATE);
 
-  if (!plan)
-    return {};
-
+  /*calculate IFFT*/
   fftw_execute(plan);
+
+  for (auto &x : ifft_out)
+  {
+    x /= FFT_size;
+  }
+
+  /*delete FFTW3 plan*/
   fftw_destroy_plan(plan);
-
-  double coeff = std::sqrt(batch_size);
-
-  for (auto &c : out_vec)
-    c /= batch_size;
-
-  // std::cout << "SIZE: " << out_vec.size() << "\n";
-
-  return out_vec;
 }
 
 std::vector<std::complex<double>>
 add_CP(const std::vector<std::complex<double>> &samples,
-       const tx_cfg &tx_config, const int ofdm_symb_count) {
-  std::vector<std::complex<double>> result;
-  result.reserve(samples.size() + ofdm_symb_count * tx_config.CP_size);
+       int FFT_size,
+       int CP_size)
+{
 
-  for (int i = 0; i < ofdm_symb_count; ++i) {
-    auto symb_begin = samples.begin() + i * tx_config.FFT_size;
-    auto symb_end = symb_begin + tx_config.FFT_size;
+  const int symbols_count = samples.size() / FFT_size;
 
-    auto cp_begin = symb_end - tx_config.CP_size;
+  std::vector<std::complex<double>> result(samples.size() +
+                                           symbols_count * CP_size);
 
-    result.insert(result.end(), cp_begin, symb_end);
+  for (int i = 0; i < symbols_count; ++i)
+  {
+    auto *dst = result.data() + i * (FFT_size + CP_size);
+    auto *src = samples.data() + i * FFT_size;
 
-    result.insert(result.end(), symb_begin, symb_end);
-  }
-
-  if (result.size() != 1920) {
-    const int padding = 1920 - result.size();
-    result.insert(result.end(), padding, {0, 0});
+    std::copy_n(src + (FFT_size - CP_size), CP_size, dst);
+    std::copy_n(src, FFT_size, dst + CP_size);
   }
 
   return result;
@@ -159,58 +182,73 @@ std::vector<double> smooth(const std::vector<double> &x, int w) {
 }
 
 std::vector<double>
-OFDM_corr_receiving(const std::vector<std::complex<double>> &rx,
-                    std::vector<double> &cfo, int N, int Lcp) {
-  std::vector<double> corr_func;
+OFDM_corr_receiving(const std::vector<std::complex<double>> &samples,
+                    const int FFT_size, const int CP_size)
+{
+  std::vector<double> norm_corr;
 
-  const int L = rx.size() - N - Lcp;
+  /*offset for prevention out of range*/
+  const int offset = FFT_size + CP_size - 1;
 
+  /*length of vectors (for normalization)*/
+  double A = 0;
+  double B = 0;
+
+  /*cur correlation*/
   std::complex<double> corr = 0;
 
-  std::vector<std::complex<double>> R;
-  std::vector<double> A = {0};
-  std::vector<double> B = {0};
-  // cfo.reserve(L);
+  /*
+    Compute full correlation for first symbol.
+    if CP element have index k, then original element in end of OFDM symbol have
+    index [k+FFT_size]
+  */
+  for (int k = 0; k < CP_size; ++k)
+  {
+    corr += samples[k] * std::conj(samples[k + FFT_size]);
 
-  // double acc = 0;
-
-  for (int k = 0; k < Lcp; ++k) {
-    corr += rx[k] * std::conj(rx[k + N]);
-    A[0] += std::abs(rx[k]) * std::abs(rx[k]);
-    B[0] += std::abs(rx[k + N]) * std::abs(rx[k + N]);
+    /*|vector| = sqrt(vector[0] ^ 2 + vector[1] ^ 2 ...)*/
+    A += std::abs(samples[k]) * std::abs(samples[k]);
+    B += std::abs(samples[k + FFT_size]) * std::abs(samples[k + FFT_size]);
   }
 
-  // cfo.push_back(std::arg(corr) / (2 * M_PI));
-  // acc += corr;
-  R.push_back(corr);
+  double denom = std::sqrt(A * B);
+  norm_corr.push_back(denom > 0 ? std::abs(corr) / denom : 0);
 
-  double new_a;
-  double new_b;
+  /*
+  update correlation
+  We compute correlation b/w two sliding windows. In next iteration we capture
+  one element from right side, but loss one element from left side. This means,
+  that we can compute correlation recursively:
 
-  corr_func.push_back(std::abs(R.back() / std::sqrt(A.back() * B.back())));
+  corr[n+1] = corr[n-1] + right - left
 
-  for (int k = 1; k < L; ++k) {
-    std::complex<double> newR =
-        R.back() - rx[k - 1] * std::conj(rx[k + N - 1]) +
-        rx[k + Lcp - 1] * std::conj(rx[k + N + Lcp - 1]);
+  For our case:
 
-    // cfo.push_back(std::arg(newR) / (2 * M_PI));
+  corr[k+1] = corr[k] -  samples[k - 1] * conj(samples[k + FFT_size - 1]) +
+  samples[k + CP_size - 1] * conj(samples[k + FFT_size + CP_size - 1])
 
-    R.push_back(newR);
+  corr[k] - prev correlation,
+  samples[k - 1] * conj(samples[k + FFT_size - 1]) - correlation for loss
+  element (left side) samples[k + FFT_size - 1] * conj(samples[k + FFT_size]) -
+  correlation for new element (right side)
+  */
 
-    new_a = A.back() - std::norm(rx[k - 1]) + std::norm(rx[k + Lcp - 1]);
+  for (int k = 1; k < samples.size() - offset; ++k)
+  {
+    corr = corr - samples[k - 1] * std::conj(samples[k + FFT_size - 1]) +
+           samples[k + CP_size - 1] *
+               std::conj(samples[k + FFT_size + CP_size - 1]);
 
-    A.push_back(new_a);
+    A = A - std::norm(samples[k - 1]) + std::norm(samples[k + CP_size - 1]);
 
-    new_b =
-        B.back() - std::norm(rx[k + N - 1]) + std::norm(rx[k + N + Lcp - 1]);
+    B = B - std::norm(samples[k + FFT_size - 1]) +
+        std::norm(samples[k + FFT_size + CP_size - 1]);
 
-    B.push_back(new_b);
-
-    corr_func.push_back(std::abs(R.back() / std::sqrt(A.back() * B.back())));
+    denom = std::sqrt(A * B);
+    norm_corr.push_back(denom > 0 ? std::abs(corr) / denom : 0);
   }
 
-  return corr_func;
+  return norm_corr;
 }
 
 void CFO_estimation(std::vector<std::complex<double>> &signal,
@@ -339,25 +377,29 @@ create_ofdm_symbols(const std::vector<std::complex<double>> &symbols,
 
 std::vector<cell_type> create_ofdm_grid(const int FFT_size,
                                         const int pilots_count,
-                                        const int gi_size) {
-  // create grid and fill her by zeros
+                                        const int gi_size)
+{
+  // create grid and fill her by data cell
   std::vector<cell_type> grid(FFT_size, data);
 
-  // fill left guard
-  for (int i = 0; i < gi_size; ++i) {
+  // fill left/right guard
+  for (int i = 0; i < gi_size; ++i)
+  {
     grid[i] = guard;
+    grid[grid.size() - i - 1] = guard;
   }
 
-  // fill right guard
-  for (int i = FFT_size - gi_size - 1; i < FFT_size; ++i) {
-    grid[i] = guard;
-  }
-
+  /*
+    compute space b/w pilots. Each symbol has pilots on the sides, and in the
+    center the pilots are distributed evenly
+   */
   double pilot_step = double(FFT_size - 2 * gi_size - 1) / (pilots_count - 1);
+
   int pilot_pos;
 
   // fill pilots
-  for (int i = 0; i < pilots_count; ++i) {
+  for (int i = 0; i < pilots_count; ++i)
+  {
     pilot_pos = gi_size + std::lround(i * pilot_step);
     grid[pilot_pos] = pilot;
   }
@@ -369,25 +411,41 @@ std::vector<std::complex<double>>
 create_ofdm_signal(const std::vector<std::complex<double>> &symbols,
                    const std::vector<cell_type> &grid,
                    const std::complex<double> pilot_value,
-                   const int buff_size) {
+                   const int buff_size)
+{
+  /*buff size - size of buffer in SDR*/
   std::vector<std::complex<double>> signal;
-  signal.reserve(buff_size);
 
   int k = 0;
 
-  while (k < symbols.size()) {
-    for (int j = 0; j < grid.size(); ++j) {
+  while (k < symbols.size())
+  {
+    for (int j = 0; j < grid.size(); ++j)
+    {
 
-      if (grid[j] == guard) {
+      /*if cell is guard, then signal is (0,0)*/
+      if (grid[j] == guard)
+      {
         signal.push_back({0, 0});
       }
 
-      else if (grid[j] == pilot) {
+      /*if cell is pilot, then insert pilot*/
+      else if (grid[j] == pilot)
+      {
         signal.push_back(pilot_value);
       }
 
-      else {
-        signal.push_back(symbols[k++]);
+      /*if cell is data, then insert symbol*/
+      else if (grid[j] == data)
+      {
+        if (k >= symbols.size())
+        {
+          signal.push_back({0, 0});
+        }
+        else
+        {
+          signal.push_back(symbols[k++]);
+        }
       }
     }
   }
@@ -635,4 +693,77 @@ std::vector<std::complex<double>> create_frames(const std::vector<frame_cell>& f
   }
 
   return frames;
+}
+
+std::vector<std::complex<double>> ZC_gen(const int root, const int FFT_size)
+{
+
+  std::vector<std::complex<double>> d_u;
+  d_u.reserve(61);
+
+  const std::complex<double> j(0, 1);
+
+  for (int n = 0; n < 61; ++n)
+  {
+
+    double nd = static_cast<double>(n);
+    double ud = static_cast<double>(root);
+
+    std::complex<double> d;
+
+    if (n <= 30)
+    {
+      d = std::exp(-j * M_PI * ud * nd * (nd + 1) / 63.0);
+    }
+    else
+    {
+      d = std::exp(-j * M_PI * ud * (nd + 1) * (nd + 2) / 63.0);
+    }
+
+    d_u.push_back(d);
+  }
+
+  d_u.resize(FFT_size);
+
+  return d_u;
+}
+
+std::vector<std::complex<double>> add_ZC(const std::vector<std::complex<double>> &ofdm_samples, const std::vector<std::complex<double>> &ZC)
+{
+  std::vector<std::complex<double>> result;
+  result.reserve(ofdm_samples.size() + 2 * ZC.size());
+
+  result.insert(result.end(), ZC.begin(), ZC.end());
+  result.insert(result.end(), ofdm_samples.begin(), ofdm_samples.end());
+  result.insert(result.end(), ZC.begin(), ZC.end());
+
+  return result;
+}
+
+std::vector<double> ZC_corr(const std::vector<std::complex<double>> &samples,
+                            const std::vector<std::complex<double>> &ZC)
+{
+  std::vector<double> corr_func;
+
+  double B = 0;
+
+  for (int i = 0; i < ZC.size(); ++i)
+    B += std::norm(ZC[i]);
+
+  for (int k = 0; k <= samples.size() - ZC.size(); ++k)
+  {
+    std::complex<double> R = 0;
+    double A = 0;
+
+    for (int i = 0; i < ZC.size(); ++i)
+    {
+      R += samples[k + i] * std::conj(ZC[i]);
+      A += std::norm(samples[k + i]);
+    }
+
+    double coeff = std::sqrt(A * B);
+    corr_func.push_back(coeff != 0.0 ? std::abs(R) / coeff : 0);
+  }
+
+  return corr_func;
 }
