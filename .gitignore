@@ -2,5 +2,6 @@
 /docs
 *.txt
 !lts.txt
+*.pcm
 /venv
 __pycache__
