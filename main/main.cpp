@@ -41,6 +41,8 @@ int main(int argc, char *argv[])
 
   int mode = std::atoi(argv[2]);
 
+  int default_buffer_size = 1920 * 1;
+
   sdr_config_t sdr_config;
 
   double rx_carrier_freq = 800e6;
@@ -48,25 +50,25 @@ int main(int argc, char *argv[])
 
   if (mode == 0)
   {
-    rx_carrier_freq = 800e6;
-    tx_carrier_freq = 1000e6;
-    sdr_config.buff_size = 1920 * 2;
+    rx_carrier_freq = 2200e6;
+    tx_carrier_freq = 800e6;
+    sdr_config.buff_size = default_buffer_size * 2;
   }
 
   if (mode == 1)
   {
-    sdr_config.buff_size = 1920;
+    sdr_config.buff_size = default_buffer_size;
 
-    rx_carrier_freq = 700e6;
-    tx_carrier_freq = 800e6;
+    rx_carrier_freq = 800e6;
+    tx_carrier_freq = 2200e6;
   }
 
   /*init SDR config*/
   sdr_config.usb_uri = argv[1];
   sdr_config.rx_carrier_freq = rx_carrier_freq;
   sdr_config.tx_carrier_freq = tx_carrier_freq;
-  sdr_config.rx_sample_rate = 1e6;
-  sdr_config.tx_sample_rate = 1e6;
+  sdr_config.rx_sample_rate = 3e6;
+  sdr_config.tx_sample_rate = 3e6;
   sdr_config.rx_gain = 20;
   sdr_config.tx_gain = 80;
   sdr_config.mode = mode;
@@ -80,11 +82,11 @@ int main(int argc, char *argv[])
   tx_config.IR_type = 0;
   tx_config.tx_samples.resize(sdr_config.buff_size);
   tx_config.OFDM = 1;
-  tx_config.FFT_size = 64;
-  tx_config.CP_size = 16;
-  tx_config.guard_size = 2;
-  tx_config.pilot_value = {1, 1};
-  tx_config.pilots_count = 8;
+  tx_config.FFT_size = 128;
+  tx_config.CP_size = 24;
+  tx_config.guard_size = 27;
+  tx_config.pilot_value = {1, 0};
+  tx_config.pilots_count = 7;
 
   /*init RX config*/
   rx_cfg rx_config;
@@ -98,11 +100,11 @@ int main(int argc, char *argv[])
   rx_config.sps = 10;
   rx_config.rx_samples.resize(sdr_config.buff_size);
   rx_config.OFDM = 1;
-  rx_config.FFT_size = 64;
-  rx_config.pilots_count = 8;
-  rx_config.guard_size = 2;
-  rx_config.pilot_value = {1, 1};
-  rx_config.CP_size = 16;
+  rx_config.FFT_size = 128;
+  rx_config.pilots_count = 7;
+  rx_config.guard_size = 27;
+  rx_config.pilot_value = {1, 0};
+  rx_config.CP_size = 24;
 
   std::thread gui_thread(run_gui, std::ref(tx_config), std::ref(rx_config),
                          std::ref(sdr_config));
@@ -232,6 +234,8 @@ int main(int argc, char *argv[])
         SoapySDRDevice_readStream(sdr, rxStream, rx_buffs, sdr_config.buff_size,
                                   &flags, &timeNs, timeoutUs);
 
+    // std::cout << "Time diff: " << timeNs - last_time << "\n\n";
+
     last_time = timeNs;
 
     // Переменная для времени отправки сэмплов относительно текущего приема
@@ -242,6 +246,8 @@ int main(int argc, char *argv[])
     st = SoapySDRDevice_writeStream(
         sdr, txStream, (const void *const *)tx_buffs, sdr_config.buff_size,
         &flags, tx_time, timeoutUs);
+
+    // std::cout << st << "\n";
   }
   if (rx_thread.joinable())
     rx_thread.join();

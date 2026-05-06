@@ -5,12 +5,13 @@
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include "../RX/fft.hpp"
 // #include <libInterpolate/Interpolate.hpp>
 
 // std::vector<std::vector<std::complex<double>>> batched(const
 // std::vector<std::complex<double>> &data, const int size)
 // {
-//   if (data.size() % size != 0)
+//   if (data.size() % size !=d F 0)
 //   {
 //     spdlog::error("[OFDM.cpp]: data size % batch size != 0!");
 //     return {};
@@ -30,6 +31,8 @@
 
 //   return batches;
 // }
+
+using namespace std::complex_literals;
 
 void batch_ifft(std::vector<std::complex<double>> &data,
                 std::vector<std::complex<double>> &ifft_out, const int FFT_size)
@@ -110,6 +113,10 @@ add_CP(const std::vector<std::complex<double>> &samples,
     std::copy_n(src + (FFT_size - CP_size), CP_size, dst);
     std::copy_n(src, FFT_size, dst + CP_size);
   }
+
+  std::cout << result.size() << "\n\n";
+
+  result.resize(1920);
 
   return result;
 }
@@ -256,28 +263,41 @@ OFDM_corr_receiving(const std::vector<std::complex<double>> &samples,
 }
 
 void CFO_estimation(std::vector<std::complex<double>> &signal,
-                    const std::vector<int> &peaks, const int CP_size,
-                    const int FFT_size)
+                    const std::vector<int> &peaks,
+                    int CP_size,
+                    int FFT_size, const int Fs)
 {
   std::complex<double> corr(0, 0);
-  int start, end;
+
+  if (peaks.size() == 0)
+  {
+    return;
+  }
 
   for (int i = 0; i < peaks.size(); ++i)
   {
-    start = peaks[i];
-    end = start + FFT_size;
+    int start = peaks[i];
+    int end = start + FFT_size;
+
+    if (end + CP_size >= signal.size())
+      continue;
+
     for (int j = 0; j < CP_size; ++j)
     {
       corr += signal[start + j] * std::conj(signal[end + j]);
     }
   }
 
-  double CFO = -std::arg(corr) / (2 * M_PI);
+  double CFO = -std::arg(corr) * Fs / (2 * M_PI * FFT_size);
 
-  for (int i = 0; i < signal.size(); ++i)
+  std::cout << "CFO: " << CFO << "\n\n\n";
+
+  for (int k = 0; k < signal.size(); ++k)
   {
-    signal[i] *= std::exp(std::complex<double>(
-        0.0, -2.0 * M_PI * CFO * static_cast<double>(i) / FFT_size));
+    double tmp = static_cast<double>(k) / Fs;
+
+    // signal[i] *= std::exp(std::complex<double>(0.0, -2.0 * M_PI * CFO * static_cast<double>(tmp)));
+    signal[k] *= std::exp(-1i * 2.0 * M_PI * CFO * tmp);
   }
 }
 
@@ -411,33 +431,75 @@ std::vector<cell_type> create_ofdm_grid(const int FFT_size,
                                         const int pilots_count,
                                         const int gi_size)
 {
-  // create grid and fill her by data cell
   std::vector<cell_type> grid(FFT_size, data);
 
-  // fill left/right guard
+  // --- 1. Guard bands ---
   for (int i = 0; i < gi_size; ++i)
   {
     grid[i] = guard;
-    grid[grid.size() - i - 1] = guard;
+    grid[FFT_size - 1 - i] = guard;
   }
 
-  /*
-    compute space b/w pilots. Each symbol has pilots on the sides, and in the
-    center the pilots are distributed evenly
-   */
-  double pilot_step = double(FFT_size - 2 * gi_size - 1) / (pilots_count - 1);
+  // --- 2. DC (k = 0) ---
+  grid[0] = guard; // или отдельный тип, но логически это "не используется"
 
-  int pilot_pos;
+  // --- 3. Определяем usable диапазон ---
+  int start = gi_size;              // первый после guard
+  int end = FFT_size - gi_size - 1; // последний перед правым guard
 
-  // fill pilots
+  // исключаем DC, если он попал в диапазон
+  if (start == 0)
+    start = 1;
+
+  int usable = end - start + 1;
+
+  // --- 4. Расстановка пилотов ---
   for (int i = 0; i < pilots_count; ++i)
   {
-    pilot_pos = gi_size + std::lround(i * pilot_step);
-    grid[pilot_pos] = pilot;
+    // равномерно по usable области
+    int pos = start + (i * usable) / pilots_count;
+
+    // защита от попадания в DC
+    if (pos == 0)
+      continue;
+
+    grid[pos] = pilot;
   }
 
   return grid;
 }
+
+// std::vector<cell_type> create_ofdm_grid(const int FFT_size,
+//                                         const int pilots_count,
+//                                         const int gi_size)
+// {
+//   // create grid and fill her by data cell
+//   std::vector<cell_type> grid(FFT_size, data);
+
+//   // fill left/right guard
+//   for (int i = 0; i < gi_size; ++i)
+//   {
+//     grid[i] = guard;
+//     grid[grid.size() - i - 1] = guard;
+//   }
+
+//   /*
+//     compute space b/w pilots. Each symbol has pilots on the sides, and in the
+//     center the pilots are distributed evenly
+//    */
+//   double pilot_step = double(FFT_size - 2 * gi_size - 1) / (pilots_count - 1);
+
+//   int pilot_pos;
+
+//   // fill pilots
+//   for (int i = 0; i < pilots_count; ++i)
+//   {
+//     pilot_pos = gi_size + std::lround(i * pilot_step);
+//     grid[pilot_pos] = pilot;
+//   }
+
+//   return grid;
+// }
 
 std::vector<std::complex<double>>
 create_ofdm_signal(const std::vector<std::complex<double>> &symbols,
@@ -577,41 +639,70 @@ void linear_interpolation2(std::vector<double> &H, const std::vector<int> &pos,
   }
 }
 
-void unwrap_phase(std::vector<double> &phase, int FFT_size)
+// void unwrap_phase(std::vector<double> &phase, int FFT_size)
+// {
+//   int total_size = phase.size();
+//   int symbs_count = total_size / FFT_size;
+
+//   for (int s = 0; s < symbs_count; ++s)
+//   {
+//     double offset = 0.0;
+//     int prev_idx = -1;
+
+//     int start = s * FFT_size;
+//     int end = start + FFT_size;
+
+//     for (int i = start; i < end; ++i)
+//     {
+//       if (phase[i] == 0.0)
+//         continue;
+
+//       if (prev_idx == -1)
+//       {
+//         prev_idx = i;
+//         continue;
+//       }
+
+//       double d = phase[i] - phase[prev_idx];
+
+//       if (d > M_PI)
+//         offset -= 2 * M_PI;
+//       else if (d < -M_PI)
+//         offset += 2 * M_PI;
+
+//       phase[i] += offset;
+
+//       prev_idx = i;
+//     }
+//   }
+// }
+
+void unwrap_phase(std::vector<double> &phase,
+                  const std::vector<int> &pilots_pos,
+                  int sym, int FFT_size)
 {
-  int total_size = phase.size();
-  int symbs_count = total_size / FFT_size;
+  double offset = 0.0;
 
-  for (int s = 0; s < symbs_count; ++s)
+  int base = sym * FFT_size;
+
+  double prev = phase[base + pilots_pos[0]];
+
+  for (int i = 1; i < pilots_pos.size(); ++i)
   {
-    double offset = 0.0;
-    int prev_idx = -1;
+    int idx = base + pilots_pos[i];
 
-    int start = s * FFT_size;
-    int end = start + FFT_size;
+    double curr = phase[idx];
+    double d = curr - prev;
 
-    for (int i = start; i < end; ++i)
-    {
-      if (phase[i] == 0.0)
-        continue;
+    if (d > M_PI)
+      offset -= 2 * M_PI;
+    else if (d < -M_PI)
+      offset += 2 * M_PI;
 
-      if (prev_idx == -1)
-      {
-        prev_idx = i;
-        continue;
-      }
+    curr += offset;
+    phase[idx] = curr;
 
-      double d = phase[i] - phase[prev_idx];
-
-      if (d > M_PI)
-        offset -= 2 * M_PI;
-      else if (d < -M_PI)
-        offset += 2 * M_PI;
-
-      phase[i] += offset;
-
-      prev_idx = i;
-    }
+    prev = curr; // ВАЖНО: уже unwrap-нутое значение
   }
 }
 
@@ -632,14 +723,7 @@ channel_estimation(std::vector<std::complex<double>> &signal,
 
     for (int j = 0; j < static_cast<int>(pilots_pos.size()); ++j)
     {
-      sum += signal[pilots_pos[j] + i * FFT_size] * std::conj(pilot_value);
-    }
-
-    const double cpe = std::arg(sum);
-
-    for (int k = 0; k < FFT_size; ++k)
-    {
-      signal[i * FFT_size + k] *= std::exp(std::complex<double>(0.0, -cpe));
+      sum += signal[pilots_pos[j] + i * FFT_size] / pilot_value;
     }
 
     std::vector<double> A_sym(FFT_size, 0.0);
@@ -654,7 +738,7 @@ channel_estimation(std::vector<std::complex<double>> &signal,
       phi_sym[pos] = std::arg(h);
     }
 
-    unwrap_phase(phi_sym, FFT_size);
+    unwrap_phase(phi_sym, pilots_pos, symbs_count, FFT_size);
     linear_interpolation2(A_sym, pilots_pos, FFT_size);
     linear_interpolation2(phi_sym, pilots_pos, FFT_size);
 
@@ -675,6 +759,42 @@ void channel_equalization(std::vector<std::complex<double>> &symbols,
   {
     if (std::abs(estimation[i]) > 1e-12)
       symbols[i] /= estimation[i];
+  }
+}
+
+void CPE_equalization(std::vector<std::complex<double>> &signal,
+                      const std::vector<cell_type> &grid,
+                      std::complex<double> pilot_value)
+{
+  const std::vector<int> pilots_pos = get_pilots_pos(grid);
+  const int FFT_size = grid.size();
+  const int symbs_count = signal.size() / FFT_size;
+
+  for (int sym = 0; sym < symbs_count; ++sym)
+  {
+    std::complex<double> sum(0.0, 0.0);
+
+    // --- оценка CPE ---
+    for (int p : pilots_pos)
+    {
+      int idx = sym * FFT_size + p;
+      sum += signal[idx] / pilot_value;
+    }
+
+    if (std::abs(sum) < 1e-12)
+      continue;
+
+    double cpe = std::arg(sum);
+
+    // --- компенсация ---
+    std::complex<double> rot = std::exp(std::complex<double>(0.0, -cpe));
+
+    int base = sym * FFT_size;
+
+    for (int k = 0; k < FFT_size; ++k)
+    {
+      signal[base + k] *= rot;
+    }
   }
 }
 
@@ -756,35 +876,26 @@ std::vector<std::complex<double>> create_frames(const std::vector<frame_cell> &f
   return frames;
 }
 
-std::vector<std::complex<double>> ZC_gen(const int root, const int FFT_size)
+std::vector<std::complex<double>> ZC_gen(int root, int Nzc)
 {
-
-  std::vector<std::complex<double>> d_u;
-  d_u.reserve(61);
+  std::vector<std::complex<double>> d_u(Nzc);
 
   const std::complex<double> j(0, 1);
 
-  for (int n = 0; n < 61; ++n)
+  for (int n = 1; n < Nzc; ++n)
   {
-
     double nd = static_cast<double>(n);
     double ud = static_cast<double>(root);
 
-    std::complex<double> d;
-
-    if (n <= 30)
+    if (Nzc % 2 == 0)
     {
-      d = std::exp(-j * M_PI * ud * nd * (nd + 1) / 63.0);
+      d_u[n] = std::exp(-j * M_PI * ud * nd * nd / static_cast<double>(Nzc));
     }
     else
     {
-      d = std::exp(-j * M_PI * ud * (nd + 1) * (nd + 2) / 63.0);
+      d_u[n] = std::exp(-j * M_PI * ud * nd * (nd + 1) / static_cast<double>(Nzc));
     }
-
-    d_u.push_back(d);
   }
-
-  d_u.resize(FFT_size);
 
   return d_u;
 }
@@ -900,4 +1011,37 @@ void PSS_CFO_CORRECTION(std::vector<std::complex<double>> &samples, const std::v
   std::cout << "range = " << range << "\n";
   std::cout << "phase = " << phase << "\n";
   std::cout << "cfo = " << cfo << "\n";
+}
+
+double coarse_cfo(std::vector<std::complex<double>> &r, int max_index, int FFT_size, int Lcp, double fs)
+{
+  std::complex<double> P = 0.0f;
+  for (int i = 0; i < Lcp; ++i)
+    P += r[max_index + i] * std::conj(r[max_index + i + FFT_size]);
+
+  double epsilon = std::arg(P) / (2 * M_PIf);
+
+  double cfo_hz = epsilon * fs / FFT_size;
+
+  for (size_t n = 0; n < r.size(); ++n)
+  {
+    double phase = 2 * M_PIf * cfo_hz * n / fs;
+    r[n] *= std::complex<double>(std::cos(phase), std::sin(phase));
+  }
+
+  return cfo_hz;
+}
+
+void fft_shift_ofdm_symbols(std::vector<std::complex<double>> &samples, int FFT_size)
+{
+  int ofdm_symbols = samples.size() / FFT_size;
+
+  for (int i = 0; i < ofdm_symbols; ++i)
+  {
+    auto start = samples.begin() + i * FFT_size;
+    auto mid = start + FFT_size / 2;
+    auto end = start + FFT_size;
+
+    std::rotate(start, mid, end);
+  }
 }

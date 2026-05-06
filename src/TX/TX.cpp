@@ -18,6 +18,7 @@
 #include "../../includes/OFDM.hpp"
 #include "../../includes/Transmitter.hpp"
 #include "../../includes/general/subfuncs.hpp"
+#include "../RX/fft.hpp"
 
 void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg)
 {
@@ -76,6 +77,8 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg)
             config.symb_count = sdr_cfg.buff_size / ofdm_symb_size - 2;
             int N_bits = config.symb_count * payload_size * bits_per_symbol;
 
+            // std::cout << "SYMB COUNT: " << config.symb_count << "\n\n";
+
             config.bits = bits_gen(N_bits);
 
             /*=========================================== gen grid ========================================*/
@@ -87,14 +90,19 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg)
             /*=========================================== gen PSK/QAM symbols ========================================*/
             config.symbols = TX.modulator_.QAM(config.mod_order, config.bits);
 
+            // std::cout << "INNER SYMBOLS SIZE: " << config.symbols.size() << "\n\n";
+
             /*=========================================== gen OFDM symbols (Freq Domain) ========================================*/
             std::vector<std::complex<double>> ofdm_symbols = create_ofdm_signal(config.symbols, config.grid, config.pilot_value, sdr_cfg.buff_size);
 
             /*=========================================== Add ZC ========================================*/
             ofdm_symbols = add_ZC(ofdm_symbols, zc);
 
+            // fft_shift_ofdm_symbols(ofdm_symbols, config.FFT_size);
+
             /*=========================================== gen OFDM symbols (Time Domain) ========================================*/
-            std::vector<std::complex<double>> ofdm_signal;
+            std::vector<std::complex<double>>
+                ofdm_signal;
             batch_ifft(ofdm_symbols, ofdm_signal, config.FFT_size);
 
             /*=========================================== Add CP ========================================*/
@@ -103,9 +111,11 @@ void TX_proccesing(tx_cfg &config, const sdr_config_t &sdr_cfg)
             /*=========================================== Upscaling for SDR ========================================*/
             config.tx_samples = upscaling(ofdm_signal);
 
-            auto end = std::chrono::steady_clock::now();
+            // std::cout << "SAMPLES SIZE WITHOUT ZC: " << config.tx_samples.size() - 2 * (config.FFT_size + config.CP_size) << "\n\n";
 
-            auto diff = end - start;
+            // auto end = std::chrono::steady_clock::now();
+
+            // auto diff = end - start;
             // std::cout << std::chrono::duration<double, std::milli>(diff).count() << " мс" << std::endl;
         }
     }

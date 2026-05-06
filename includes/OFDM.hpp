@@ -70,17 +70,26 @@ void linear_interpolation2(std::vector<double> &H, const std::vector<int> &pos,
 std::vector<int> get_pilots_pos(const std::vector<cell_type> &grid);
 
 void CFO_estimation(std::vector<std::complex<double>> &signal,
-                    const std::vector<int> &peaks, const int CP_size,
-                    const int FFT_size);
+                    const std::vector<int> &peaks,
+                    int CP_size,
+                    int FFT_size, const int Fs);
 
 // void CFO_correction(std::vector<std::complex<double>> &samples,
 //                     const std::vector<int> &peaks,
 //                     const std::vector<double> &cfo, const int Lcp,
 //                     const int Nc);
 
-std::vector<std::complex<double>> ZC_gen(const int root, const int FFT_size);
+std::vector<std::complex<double>> ZC_gen(int root, int Nzc);
 
 std::vector<std::complex<double>> add_ZC(const std::vector<std::complex<double>> &ofdm_samples, const std::vector<std::complex<double>> &ZC);
 
 std::vector<double> ZC_corr(const std::vector<std::complex<double>> &samples,
                             const std::vector<std::complex<double>> &ZC);
+
+double coarse_cfo(std::vector<std::complex<double>> &r, int max_index, int FFT_size, int Lcp, double fs);
+
+void fft_shift_ofdm_symbols(std::vector<std::complex<double>> &samples, const int FFT_size);
+
+void CPE_equalization(std::vector<std::complex<double>> &signal,
+                      const std::vector<cell_type> &grid,
+                      std::complex<double> pilot_value);

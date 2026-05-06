@@ -11,6 +11,7 @@
 #include <spdlog/spdlog.h>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "../../includes/ImGUI_interface.h"
 #include "../../includes/OFDM.hpp"
@@ -69,21 +70,21 @@ int_to_double(const std::vector<std::complex<int16_t>> &samples)
 
 void normalized(std::vector<std::complex<double>> &data)
 {
-  std::complex<double> max;
-  double max_abs = -__DBL_MAX__;
+  double max_abs = 0.0;
 
   for (int i = 0; i < data.size(); ++i)
   {
-    if (std::abs(data[i]) > max_abs)
-    {
-      max_abs = std::abs(data[i]);
-      max = data[i];
-    }
+    double a = std::abs(data[i]);
+    if (a > max_abs)
+      max_abs = a;
   }
 
+  if (max_abs < 1e-12)
+    return;
+
   for (int i = 0; i < data.size(); ++i)
   {
-    data[i] /= max;
+    data[i] /= max_abs;
   }
 }
 
@@ -188,23 +189,48 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config)
 
       std::vector<std::complex<double>> samples_d = int_to_double(rx_config.rx_samples);
 
+      // write_pcm("../signal.pcm", rx_config.rx_samples);
+
+      rx_config.spectrum = fft(samples_d, sdr_config.rx_sample_rate);
+
       rx_config.grid = create_ofdm_grid(rx_config.FFT_size, rx_config.pilots_count, rx_config.guard_size);
+
+      /*==================================================== FREQUENCY SYNC ====================================================*/
+
+      rx_config.CP_corr = OFDM_corr_receiving(samples_d, rx_config.FFT_size, rx_config.CP_size);
+
+      /*find correlation peaks*/
+      findPeaks::PeakConditions conditions;
+      conditions.set_height(0.6); // min peak value (filter)
+      rx_config.CP_peaks = findPeaks::find_peaks(rx_config.CP_corr, conditions);
+
+      if (rx_config.CP_peaks.size() == 0)
+      {
+        continue;
+      }
+
+      // double cfo = coarse_cfo(samples_d, rx_config.CP_peaks[0], rx_config.FFT_size, rx_config.CP_size, rx_config.CP_size);
+      CFO_estimation(samples_d, rx_config.CP_peaks, rx_config.CP_size, rx_config.FFT_size, sdr_config.rx_sample_rate);
 
       /*===================================================== FRAME SYNC ==========================================================================*/
 
       /*gen ZC*/
       std::vector<std::complex<double>> zc = ZC_gen(25, rx_config.FFT_size);
+      // fft_shift_ofdm_symbols(zc, rx_config.FFT_size);
+
       batch_ifft(zc, rx_config.zc, rx_config.FFT_size);
 
       /*get correlation function on PSS*/
       rx_config.zc_corr = ZC_corr(samples_d, rx_config.zc);
 
       /*find correlation peaks*/
-      findPeaks::PeakConditions conditions;
       conditions.set_height(0.6); // min peak value (filter)
       std::vector<int> zc_peaks = findPeaks::find_peaks(rx_config.zc_corr, conditions);
 
-      // std::cout << "ZC PEAKS SIZE: " << zc_peaks.size() << "\n\n";
+      for (auto &el : zc_peaks)
+      {
+        el += rx_config.zc_offset;
+      }
 
       if (zc_peaks.size() != 4)
         continue;
@@ -220,6 +246,8 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config)
       {
         cut_samples[i - start_idx] = samples_d[i];
       }
+
+      // std::cout << cut_samples.size() << "\n\n";
 
       std::vector<int> total_peaks(2);
 
@@ -244,6 +272,13 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config)
         rx_config.CP_peaks[i] = i * (rx_config.FFT_size + rx_config.CP_size);
       }
 
+      // for (int i = 0; i < rx_config.CP_peaks.size(); ++i)
+      // {
+      //   std::cout << rx_config.CP_peaks[i] << " ";
+      // }
+
+      // std::cout << "\n\n";
+
       // rx_config.CP_corr = OFDM_corr_receiving(cut_samples, rx_config.FFT_size, rx_config.CP_size);
 
       // rx_config.CP_corr.insert(rx_config.CP_corr.begin(), 1, 0);
@@ -261,7 +296,7 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config)
 
       // std::cout << "CP PEAKS SIZE: " << CP_peaks.size() << "\n\n";
 
-      CFO_estimation(cut_samples, rx_config.CP_peaks, rx_config.CP_size, rx_config.FFT_size);
+      // CFO_estimation(cut_samples, rx_config.CP_peaks, rx_config.CP_size, rx_config.FFT_size);
 
       // PSS_CFO_CORRECTION(cut_samples, total_peaks, rx_config.zc, Ts);
 
@@ -284,11 +319,13 @@ void RX_proccesing(rx_cfg &rx_config, sdr_config_t &sdr_config)
 
       // std::cout << "4567: " << cut_samples.size() << "\n\n";
 
+      normalized(rx_symbols);
+
       rx_config.raw_symbols = extract_inner_symbols(rx_symbols, rx_config.grid);
 
-      std::cout << "INNER SYMBOLS SIZE: " << rx_config.raw_symbols.size() << "\n\n";
+      // std::cout << "INNER SYMBOLS: " << rx_config.raw_symbols.size() << "\n\n";
 
-      // normalized(rx_symbols);
+      // std::cout << "INNER SYMBOLS SIZE: " << rx_config.raw_symbols.size() << "\n\n";
 
       // std::cout << "\n\nSymbols: ";
       // for (int i = 0; i < rx_symbols.size(); ++i)

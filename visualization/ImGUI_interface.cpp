@@ -109,10 +109,10 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config)
   float left_width = 450.0f;
   bool running = true;
 
-  float mhz_rx = 700;
-  float mhz_tx = 800;
-  float samplerate_rx = 1;
-  float samplerate_tx = 1;
+  float mhz_rx = sdr_config.rx_carrier_freq;
+  float mhz_tx = sdr_config.tx_carrier_freq;
+  float samplerate_rx = sdr_config.rx_sample_rate;
+  float samplerate_tx = sdr_config.tx_sample_rate;
 
   int plot_height = 450;
 
@@ -213,37 +213,6 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config)
                                 tx_config.tx_samples.size());
               ImPlot::EndPlot();
             }
-            if (ImGui::BeginTable("OFDM", tx_config.FFT_size,
-                                  ImGuiTableFlags_Borders))
-            {
-              for (int s = 0; s < tx_config.symb_count; s++)
-              {
-                ImGui::TableNextRow();
-
-                for (int sc = 0; sc < tx_config.FFT_size; sc++)
-                {
-                  ImGui::TableSetColumnIndex(sc);
-
-                  auto cell = tx_config.grid[s * tx_config.FFT_size + sc];
-
-                  if (cell == guard)
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
-                                           IM_COL32(100, 100, 100, 120));
-
-                  else if (cell == pilot)
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
-                                           IM_COL32(255, 200, 0, 120));
-
-                  else
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg,
-                                           IM_COL32(0, 200, 0, 80));
-
-                  ImGui::Text(" ");
-                }
-              }
-
-              ImGui::EndTable();
-            }
 
             ImGui::EndChild();
           }
@@ -292,6 +261,8 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config)
               ImGui::SliderInt("Guard interval size (double side)",
                                &rx_config.guard_size, 2,
                                rx_config.FFT_size / 3);
+
+              ImGui::InputInt("ZC offset", &rx_config.zc_offset, -10, 10);
             }
 
             ImGui::EndChild();
@@ -302,14 +273,14 @@ void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config)
           if (ImGui::BeginChild("RX_Plots", ImVec2(0, 0), true))
           {
 
-            // if (ImPlot::BeginPlot("CFO spectrum", ImVec2(-1, plot_height)))
-            // {
-            //   ImPlot::SetupAxes("frequency", "Amplitude");
-            //   ImPlot::PlotLineG("I component", get_amp_spec,
-            //                     &rx_config.CFO_spectrum.first,
-            //                     rx_config.CFO_spectrum.first.size());
-            //   ImPlot::EndPlot();
-            // }
+            if (ImPlot::BeginPlot("Spectrum", ImVec2(-1, plot_height)))
+            {
+              ImPlot::SetupAxes("frequency", "Amplitude");
+              ImPlot::PlotLineG("I component", get_amp_spec,
+                                &rx_config.spectrum.first,
+                                rx_config.spectrum.first.size());
+              ImPlot::EndPlot();
+            }
 
             if (ImPlot::BeginPlot("I/Q samples", ImVec2(-1, plot_height)))
             {

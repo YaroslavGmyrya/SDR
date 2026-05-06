@@ -10,7 +10,7 @@ template <typename T>
 inline void fft_shift(std::vector<T> &fft_samples)
 {
   int N = fft_samples.size();
-  int shift = N / 2;
+  int shift = (N + 1) / 2;
 
   std::rotate(fft_samples.begin(), fft_samples.begin() + shift,
               fft_samples.end());

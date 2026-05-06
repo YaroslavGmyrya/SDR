@@ -62,6 +62,8 @@ struct rx_cfg
     double costas_Kp;
     double costas_BnTs;
 
+    int zc_offset;
+
     // buffers
     std::vector<std::complex<int16_t>> rx_samples;
     std::vector<std::complex<double>> mf_samples_out;
@@ -82,6 +84,7 @@ struct rx_cfg
     std::vector<std::complex<double>> zc;
     std::vector<double> CP_corr;
     std::vector<int> CP_peaks;
+    std::vector<int> CP_peaks2;
 };
 
 void run_gui(tx_cfg &tx_config, rx_cfg &rx_config, sdr_config_t &sdr_config);
